@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 
+
+from restricciones import repetir_familia_cultivo, diversificacion_pac
+
 parcelas = pd.read_csv("Datos/Parcelas.csv")
 cultivos = pd.read_csv("Datos/Cultivos.csv")
 
@@ -36,26 +39,20 @@ def poblacion_inicial(n_individuos):
 
 
 def aptitud(plan):
-    
     margen = (beneficio_ha[plan] * superficie[:, None]).sum()
 
     secuencia = np.hstack([historial, plan])
 
-    #Restricciones de rotación de cultivos: El cereal no puede repetirse más de 3 años seguidos 
-    # y la leguminosa no puede repetirse más de 2 años seguidos.
-    violaciones = 0
+    #Restriccion de no repetir cultivos de la misma familia más de un número máximo de veces consecutivas
+    violaciones = (repetir_familia_cultivo(secuencia, es_cereal, 2)
+                   + repetir_familia_cultivo(secuencia, es_leguminosa, 1))
 
-    cereal = es_cereal[secuencia]
-    for t in range(1,4):
-        tres = cereal[:, t] & cereal[:, t+1] & cereal[:, t+2]
-        violaciones += tres.sum()
-
-    for t in range(2, 5):
-        ambas = es_leguminosa[secuencia[:, t]] & es_leguminosa[secuencia[:, t+1]]
-        violaciones += ambas.sum()
-
+    # Diversificación de la PAC
+    violaciones += diversificacion_pac(plan, superficie, n_cultivos)
 
     return margen - 10000 * violaciones
+
+   
 
 
 
