@@ -37,21 +37,26 @@ def plan_aleatorio():
 def poblacion_inicial(n_individuos):
     return np.array([plan_aleatorio() for _ in range(n_individuos)])
 
-
-
-def aptitud(plan):
+def evaluar_plan(plan):
     margen = (beneficio_ha[plan] * superficie[:, None]).sum()
 
     secuencia = np.hstack([historial, plan])
 
-    #Restriccion de no repetir cultivos de la misma familia más de un número máximo de veces consecutivas
-    violaciones = (repetir_familia_cultivo(secuencia, es_cereal, 2)
-                   + repetir_familia_cultivo(secuencia, es_leguminosa, 1))
+   
+    n_historial = historial.shape[1]
+    violaciones = (repetir_familia_cultivo(secuencia, es_cereal, 2, n_historial)
+                   + repetir_familia_cultivo(secuencia, es_leguminosa, 1, n_historial))
 
     # BCAM 7 de la PAC (modalidad A): rotación de cultivos y diversificación
-    violaciones += rotacion_cultivos(secuencia, superficie, n_cultivos)
+    violaciones += rotacion_cultivos(secuencia, superficie, n_cultivos, desde=n_historial)
     violaciones += diversificacion_pac(plan, superficie, n_cultivos)
 
+    return margen, violaciones
+
+
+
+def aptitud(plan):
+    margen, violaciones = evaluar_plan(plan)
     return margen - 10000 * violaciones
 
 
@@ -100,7 +105,10 @@ def algoritmo_genetico(n_individuos, generaciones, tasa, n_elite):
     return mejor, mejores
 
 
-mejor, evolucion = algoritmo_genetico(100, 200, 0.1, 2)
-print(mejor)
-print("Aptitud final:", aptitud(mejor))
-print("Primera generación:", evolucion[0], "Última:", evolucion[-1])
+
+
+if __name__ == "__main__":
+    mejor, evolucion = algoritmo_genetico(100, 200, 0.1, 2)
+    print(mejor)
+    print("Aptitud final:", aptitud(mejor))
+    print("Primera generación:", evolucion[0], "Última:", evolucion[-1])

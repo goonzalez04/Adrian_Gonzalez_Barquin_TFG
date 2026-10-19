@@ -1,15 +1,15 @@
 import numpy as np
 import pandas as pd
 
-def repetir_familia_cultivo(secuencia, familia, maximo):
-
+def repetir_familia_cultivo(secuencia, familia, maximo, desde=0):
+   
     violaciones = 0
     for parcela in range(secuencia.shape[0]):
         count = 0
         for año in range(secuencia.shape[1]):
             if familia[secuencia[parcela, año]]:
                 count += 1
-                if count > maximo:
+                if count > maximo and año >= desde:
                     violaciones += 1
 
             else:
@@ -17,7 +17,7 @@ def repetir_familia_cultivo(secuencia, familia, maximo):
     return violaciones
 
 
-def rotacion_cultivos(secuencia, superficie, n_cultivos, max_anios=3):
+def rotacion_cultivos(secuencia, superficie, n_cultivos, max_anios=3, desde=0):
     # BCAM 7 (modalidad A): un mismo cultivo no puede ocupar una parcela más de
     # max_anios años seguidos. Las explotaciones de 10 ha o menos están exentas.
     if superficie.sum() <= 10:
@@ -26,7 +26,7 @@ def rotacion_cultivos(secuencia, superficie, n_cultivos, max_anios=3):
     violaciones = 0
     for c in range(n_cultivos):
         es_c = np.arange(n_cultivos) == c
-        violaciones += repetir_familia_cultivo(secuencia, es_c, max_anios)
+        violaciones += repetir_familia_cultivo(secuencia, es_c, max_anios, desde)
     return violaciones
 
 
