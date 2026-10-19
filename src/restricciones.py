@@ -17,11 +17,32 @@ def repetir_familia_cultivo(secuencia, familia, maximo):
     return violaciones
 
 
+def rotacion_cultivos(secuencia, superficie, n_cultivos, max_anios=3):
+    # BCAM 7 (modalidad A): un mismo cultivo no puede ocupar una parcela más de
+    # max_anios años seguidos. Las explotaciones de 10 ha o menos están exentas.
+    if superficie.sum() <= 10:
+        return 0
+
+    violaciones = 0
+    for c in range(n_cultivos):
+        es_c = np.arange(n_cultivos) == c
+        violaciones += repetir_familia_cultivo(secuencia, es_c, max_anios)
+    return violaciones
+
+
 def diversificacion_pac(plan, superficie, n_cultivos):
+    # BCAM 7 (modalidad A): diversificación anual de cultivos según el
+    # anexo II del RD 1049/2022
     total = superficie.sum()
 
+    # Las explotaciones de 10 ha o menos están exentas
+    if total <= 10:
+        return 0
+
     if total > 30:
-        min_cultivos, max_principal, max_dos = 3, 0.75, 0.95
+        min_cultivos, max_principal, max_dos = 3, 0.70, 0.90
+    elif total > 20:
+        min_cultivos, max_principal, max_dos = 2, 0.70, None
     else:
         min_cultivos, max_principal, max_dos = 2, 0.75, None
 

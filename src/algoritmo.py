@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 
-from restricciones import repetir_familia_cultivo, diversificacion_pac
+from restricciones import repetir_familia_cultivo, diversificacion_pac, rotacion_cultivos
 
 parcelas = pd.read_csv("Datos/Parcelas.csv")
 cultivos = pd.read_csv("Datos/Cultivos.csv")
@@ -38,6 +38,7 @@ def poblacion_inicial(n_individuos):
     return np.array([plan_aleatorio() for _ in range(n_individuos)])
 
 
+
 def aptitud(plan):
     margen = (beneficio_ha[plan] * superficie[:, None]).sum()
 
@@ -47,13 +48,11 @@ def aptitud(plan):
     violaciones = (repetir_familia_cultivo(secuencia, es_cereal, 2)
                    + repetir_familia_cultivo(secuencia, es_leguminosa, 1))
 
-    # Diversificación de la PAC
+    # BCAM 7 de la PAC (modalidad A): rotación de cultivos y diversificación
+    violaciones += rotacion_cultivos(secuencia, superficie, n_cultivos)
     violaciones += diversificacion_pac(plan, superficie, n_cultivos)
 
     return margen - 10000 * violaciones
-
-   
-
 
 
 def torneo(poblacion, aptitudes, k=3):
