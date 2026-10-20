@@ -1,0 +1,65 @@
+from dataclasses import dataclass
+import numpy as np
+import pathlib
+import pandas as pd
+
+@dataclass
+class Cultivos:
+    nombres: list
+    beneficio_ha: np.ndarray
+    es_cereal: np.ndarray
+    es_leguminosa: np.ndarray
+
+    @property
+    def n(self):
+        return len(self.nombres)
+
+@dataclass
+class Parcelas:
+    ids: list
+    superficie: np.ndarray
+    historial: np.ndarray
+
+    @property
+    def n(self):
+        return len(self.ids)
+
+@dataclass
+class Datos:
+    cultivos: Cultivos
+    parcelas: Parcelas
+    n_campañas: int = 3
+
+def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos"):
+
+    #Cultivos
+    tabla_cultivos = pd.read_csv(carpeta / "Cultivos.csv", index_col=0)
+
+    nombres = tabla_cultivos.index.to_list()
+    beneficio_ha = (tabla_cultivos["rendimiento_toneladas_ha"].to_numpy()
+                * tabla_cultivos["precio_tonelada"].to_numpy()
+                + tabla_cultivos["ayuda_PAC_ha"].to_numpy()
+                - tabla_cultivos["coste_ha"].to_numpy())
+
+
+    es_cereal = (tabla_cultivos["familia"] == "cereal").to_numpy()
+    es_leguminosa = (tabla_cultivos["familia"] == "leguminosa").to_numpy()
+
+    cultivos = Cultivos(nombres, beneficio_ha, es_cereal, es_leguminosa)
+
+    #Diccionario nombre -> numero, segun el orden en la tabla de cultivos
+    nombre_a_numero = {nombre: i for i, nombre in enumerate(nombres)}
+
+    #Parcelas
+    tabla_parcelas = pd.read_csv(carpeta / "Parcelas.csv", index_col=0)
+
+    ids = tabla_parcelas.index.to_list()
+    superficie = tabla_parcelas["superficie_ha"].to_numpy()
+
+    columnas_historial = ["anio_-3", "anio_-2", "anio_-1"]
+    historial = np.array([[nombre_a_numero[nombre] for nombre in fila] for fila in tabla_parcelas[columnas_historial].to_numpy()])
+
+    parcelas = Parcelas(ids, superficie, historial)
+
+    return Datos(cultivos, parcelas)
+    

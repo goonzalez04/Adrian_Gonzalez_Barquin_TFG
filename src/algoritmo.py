@@ -1,33 +1,28 @@
 import numpy as np
-import pandas as pd
+
 
 
 from restricciones import repetir_familia_cultivo, diversificacion_pac, rotacion_cultivos
+from datos import cargar_datos
 
-parcelas = pd.read_csv("Datos/Parcelas.csv")
-cultivos = pd.read_csv("Datos/Cultivos.csv")
-
-cultivos["beneficio_ha"] = (cultivos["rendimiento_toneladas_ha"] * cultivos["precio_tonelada"]+cultivos["ayuda_PAC_ha"]
-- cultivos["coste_ha"])
-
-beneficio_ha = cultivos["beneficio_ha"].to_numpy()
-
-es_cereal = (cultivos["familia"] == "cereal").to_numpy()
-es_leguminosa = (cultivos["familia"] == "leguminosa").to_numpy()
+datos = cargar_datos()
 
 
-n_cultivos = len(cultivos)
-n_parcelas = len(parcelas)
+
+beneficio_ha = datos.cultivos.beneficio_ha
+
+es_cereal = datos.cultivos.es_cereal
+es_leguminosa = datos.cultivos.es_leguminosa
+
+
+n_cultivos = datos.cultivos.n
+n_parcelas = datos.parcelas.n
 n_campañas = 3
 
-referencia = {nombre: i for i, nombre in enumerate(cultivos["cultivo"])}
-historial = []
-for p in range(n_parcelas):
-    historial.append([referencia[c] for c in parcelas.loc[p, ["anio_-3", "anio_-2", "anio_-1"]]])
+historial = datos.parcelas.historial
 
-historial = np.array(historial)
 
-superficie = parcelas["superficie_ha"].to_numpy()
+superficie = datos.parcelas.superficie
 
 
 def plan_aleatorio():
