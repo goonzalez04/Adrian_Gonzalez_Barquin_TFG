@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from algoritmo import (algoritmo_genetico, plan_aleatorio, evaluar_plan, aptitud, n_parcelas, n_campañas, historial )
-import os
+
 
 def busqueda_aleatoria(n_evaluaciones):
     mejor_plan = None
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
 
     
-    os.makedirs("resultados", exist_ok=True)
+    
 
     plt.figure(figsize=(9, 5))
     plt.plot(evolucion, label="Algoritmo genético (mejor de cada generación)")
@@ -40,5 +40,5 @@ if __name__ == "__main__":
     plt.legend()
     plt.grid(alpha=0.3)
     plt.tight_layout()
-    plt.savefig("resultados/evolucion.png", dpi=150)
+    
     plt.show()
