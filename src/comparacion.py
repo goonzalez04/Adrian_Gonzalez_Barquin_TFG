@@ -1,14 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from algoritmo import (algoritmo_genetico, plan_aleatorio, evaluar_plan, aptitud, n_parcelas, n_campañas, historial )
+from algoritmo import (algoritmo_genetico, plan_aleatorio, evaluar_plan, aptitud )
+from datos import cargar_datos
 
-
-def busqueda_aleatoria(n_evaluaciones):
+def busqueda_aleatoria(datos, n_evaluaciones):
     mejor_plan = None
     mejor_aptitud = -np.inf
     for i in range(n_evaluaciones):
-        plan = plan_aleatorio()
-        apt = aptitud(plan)
+        plan = plan_aleatorio(datos)
+        apt = aptitud(plan, datos)
         if mejor_plan is None or apt > mejor_aptitud:
             mejor_plan = plan
             mejor_aptitud = apt
@@ -18,10 +18,11 @@ def busqueda_aleatoria(n_evaluaciones):
 
 
 if __name__ == "__main__":
-    todo_trigo = np.zeros((n_parcelas, n_campañas), dtype=int)
-    rotacion_pasada = historial
-    mejor_aleatorio = busqueda_aleatoria(20000)
-    mejor_ga, evolucion = algoritmo_genetico(100, 200, 0.1, 2)
+    datos = cargar_datos()
+    todo_trigo = np.zeros((datos.parcelas.n, datos.n_campañas), dtype=int)
+    rotacion_pasada = datos.parcelas.historial
+    mejor_aleatorio = busqueda_aleatoria(datos, 20000)
+    mejor_ga, evolucion = algoritmo_genetico(datos, 100, 200, 0.1, 2)
 
 
 
@@ -30,9 +31,9 @@ if __name__ == "__main__":
 
     plt.figure(figsize=(9, 5))
     plt.plot(evolucion, label="Algoritmo genético (mejor de cada generación)")
-    plt.axhline(aptitud(mejor_aleatorio), color="gray", linestyle="--",
+    plt.axhline(aptitud(mejor_aleatorio, datos), color="gray", linestyle="--",
                 label="Mejor de 20 000 planes aleatorios")
-    plt.axhline(aptitud(rotacion_pasada), color="orange", linestyle=":",
+    plt.axhline(aptitud(rotacion_pasada, datos), color="orange", linestyle=":",
                 label="Rotación del año pasado")
     plt.xlabel("Generación")
     plt.ylabel("Aptitud")
