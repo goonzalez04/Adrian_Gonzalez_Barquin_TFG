@@ -36,6 +36,7 @@ class Datos:
     parcelas: Parcelas
     tipo_anio: Tipo_Anio
     n_campañas: int = 3
+    riesgo: float = 0.5
     
 
 def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos"):
