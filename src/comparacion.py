@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from algoritmo import (algoritmo_genetico, plan_aleatorio, evaluar_plan, aptitud )
+from algoritmo import (algoritmo_genetico, plan_aleatorio, evaluar_plan, aptitud, n_parcelas, n_campañas, historial)
 from datos import cargar_datos
 
 def busqueda_aleatoria(datos, n_evaluaciones):
