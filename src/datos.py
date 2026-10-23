@@ -24,11 +24,19 @@ class Parcelas:
     def n(self):
         return len(self.ids)
 
+
+@dataclass
+class Tipo_Anio:
+    estados: list
+    probabilidades: np.ndarray
+
 @dataclass
 class Datos:
     cultivos: Cultivos
     parcelas: Parcelas
+    tipo_anio: Tipo_Anio
     n_campañas: int = 3
+    
 
 def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos"):
 
@@ -36,10 +44,18 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     tabla_cultivos = pd.read_csv(carpeta / "Cultivos.csv", index_col=0)
 
     nombres = tabla_cultivos.index.to_list()
-    beneficio_ha = (tabla_cultivos["rendimiento_toneladas_ha"].to_numpy()
-                * tabla_cultivos["precio_tonelada"].to_numpy()
-                + tabla_cultivos["ayuda_PAC_ha"].to_numpy()
-                - tabla_cultivos["coste_ha"].to_numpy())
+    rendimiento = tabla_cultivos["rendimiento_toneladas_ha"].to_numpy()
+    precio = tabla_cultivos["precio_tonelada"].to_numpy()
+    ayuda = tabla_cultivos["ayuda_PAC_ha"].to_numpy()
+    coste = tabla_cultivos["coste_ha"].to_numpy()
+    factor_bueno = tabla_cultivos["factor_bueno"].to_numpy()
+    factor_malo = tabla_cultivos["factor_malo"].to_numpy()
+
+    #Factores de rendimiento por tipo de año (filas: bueno, mediocre, malo)
+    factores = np.vstack([factor_bueno, np.ones(len(nombres)), factor_malo])
+
+    #Beneficio por hectárea: una fila por tipo de año, una columna por cultivo
+    beneficio_ha = rendimiento * factores * precio + ayuda - coste
 
 
     es_cereal = (tabla_cultivos["familia"] == "cereal").to_numpy()
@@ -61,5 +77,18 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
 
     parcelas = Parcelas(ids, superficie, historial)
 
-    return Datos(cultivos, parcelas)
+
+    #Tipo de año
+    estados = ["bueno", "mediocre", "malo"]
+    prior = np.array([1, 1, 1])
+
+    tabla_campania = pd.read_csv(carpeta / "Campanias.csv", index_col=0)
+    recuento = tabla_campania["estado"].value_counts().reindex(estados, fill_value=0).to_numpy()
+
+    probabilidades = (prior + recuento) / (prior.sum() + recuento.sum())
+
+
+    tipo_anio = Tipo_Anio(estados, probabilidades)
+
+    return Datos(cultivos, parcelas, tipo_anio)
     

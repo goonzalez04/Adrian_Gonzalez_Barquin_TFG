@@ -1,4 +1,5 @@
 import numpy as np
+
 from restricciones import repetir_familia_cultivo, diversificacion_pac, rotacion_cultivos
 from datos import cargar_datos
 
@@ -13,7 +14,9 @@ def poblacion_inicial(datos, n_individuos):
     return np.array([plan_aleatorio(datos) for _ in range(n_individuos)])
 
 def evaluar_plan(plan, datos):
-    margen = (datos.cultivos.beneficio_ha[plan] * datos.parcelas.superficie[:, None]).sum()
+    probabilidades = datos.tipo_anio.probabilidades
+    margenes = (datos.cultivos.beneficio_ha[:, plan] * datos.parcelas.superficie[None, :, None]).sum(axis=(1, 2))
+    margen = (probabilidades * margenes).sum()
 
     secuencia = np.hstack([datos.parcelas.historial, plan])
 
