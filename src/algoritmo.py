@@ -1,4 +1,5 @@
 import numpy as np
+
 from restricciones import repetir_familia_cultivo, diversificacion_pac, rotacion_cultivos
 from datos import cargar_datos
 
@@ -13,7 +14,8 @@ def poblacion_inicial(datos, n_individuos):
     return np.array([plan_aleatorio(datos) for _ in range(n_individuos)])
 
 def evaluar_plan(plan, datos):
-    margen = (datos.cultivos.beneficio_ha[plan] * datos.parcelas.superficie[:, None]).sum()
+    margenes = (datos.cultivos.beneficio_ha[:, plan] * datos.parcelas.superficie[None, :, None]).sum(axis=(1, 2))
+    
 
     secuencia = np.hstack([datos.parcelas.historial, plan])
 
@@ -26,13 +28,16 @@ def evaluar_plan(plan, datos):
     violaciones += rotacion_cultivos(secuencia, datos.parcelas.superficie, datos.cultivos.n, desde=n_historial)
     violaciones += diversificacion_pac(plan, datos.parcelas.superficie, datos.cultivos.n)
 
-    return margen, violaciones
+    return margenes, violaciones
 
 
 
 def aptitud(plan, datos):
-    margen, violaciones = evaluar_plan(plan, datos)
-    return margen - 10000 * violaciones
+    margenes, violaciones = evaluar_plan(plan, datos)
+    esperado = np.dot(datos.tipo_anio.probabilidades, margenes)
+    malo = margenes[datos.tipo_anio.estados.index("malo")]
+    riesgo = esperado - malo
+    return esperado - datos.riesgo * riesgo - 10000 * violaciones
 
 
 def torneo(poblacion, aptitudes, k=3):
@@ -86,5 +91,7 @@ if __name__ == "__main__":
     datos = cargar_datos()
     mejor, evolucion = algoritmo_genetico(datos, 100, 200, 0.1, 2)
     print(mejor)
-    print("Aptitud final:", aptitud(mejor, datos))
-    print("Primera generación:", evolucion[0], "Última:", evolucion[-1])
+    margenes, violaciones = evaluar_plan(mejor, datos)
+    print("Márgenes (bueno, mediocre, malo):", margenes)
+    print("Margen esperado:", np.dot(datos.tipo_anio.probabilidades, margenes))
+
