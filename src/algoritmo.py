@@ -1,57 +1,37 @@
 import numpy as np
-
-
-
 from restricciones import repetir_familia_cultivo, diversificacion_pac, rotacion_cultivos
 from datos import cargar_datos
 
-datos = cargar_datos()
 
 
 
-beneficio_ha = datos.cultivos.beneficio_ha
-
-es_cereal = datos.cultivos.es_cereal
-es_leguminosa = datos.cultivos.es_leguminosa
+def plan_aleatorio(datos):
+    return np.random.randint(0, datos.cultivos.n, size=(datos.parcelas.n, datos.n_campañas))
 
 
-n_cultivos = datos.cultivos.n
-n_parcelas = datos.parcelas.n
-n_campañas = 3
+def poblacion_inicial(datos, n_individuos):
+    return np.array([plan_aleatorio(datos) for _ in range(n_individuos)])
 
-historial = datos.parcelas.historial
+def evaluar_plan(plan, datos):
+    margen = (datos.cultivos.beneficio_ha[plan] * datos.parcelas.superficie[:, None]).sum()
 
-
-superficie = datos.parcelas.superficie
-
-
-def plan_aleatorio():
-    return np.random.randint(0, n_cultivos, size=(n_parcelas, n_campañas))
-
-
-def poblacion_inicial(n_individuos):
-    return np.array([plan_aleatorio() for _ in range(n_individuos)])
-
-def evaluar_plan(plan):
-    margen = (beneficio_ha[plan] * superficie[:, None]).sum()
-
-    secuencia = np.hstack([historial, plan])
+    secuencia = np.hstack([datos.parcelas.historial, plan])
 
    
-    n_historial = historial.shape[1]
-    violaciones = (repetir_familia_cultivo(secuencia, es_cereal, 2, n_historial)
-                   + repetir_familia_cultivo(secuencia, es_leguminosa, 1, n_historial))
+    n_historial = datos.parcelas.historial.shape[1]
+    violaciones = (repetir_familia_cultivo(secuencia, datos.cultivos.es_cereal, 2, n_historial)
+                   + repetir_familia_cultivo(secuencia, datos.cultivos.es_leguminosa, 1, n_historial))
 
     # BCAM 7 de la PAC (modalidad A): rotación de cultivos y diversificación
-    violaciones += rotacion_cultivos(secuencia, superficie, n_cultivos, desde=n_historial)
-    violaciones += diversificacion_pac(plan, superficie, n_cultivos)
+    violaciones += rotacion_cultivos(secuencia, datos.parcelas.superficie, datos.cultivos.n, desde=n_historial)
+    violaciones += diversificacion_pac(plan, datos.parcelas.superficie, datos.cultivos.n)
 
     return margen, violaciones
 
 
 
-def aptitud(plan):
-    margen, violaciones = evaluar_plan(plan)
+def aptitud(plan, datos):
+    margen, violaciones = evaluar_plan(plan, datos)
     return margen - 10000 * violaciones
 
 
@@ -65,22 +45,22 @@ def torneo(poblacion, aptitudes, k=3):
     return poblacion[mejor]
 
 def cruza(padre, madre):
-    mascara = np.random.rand(n_parcelas)< 0.5
+    mascara = np.random.rand(padre.shape[0])< 0.5
     return np.where(mascara[:, None], padre, madre)
 
 
-def mutar(plan, tasa):
-    mascara = np.random.rand(n_parcelas, n_campañas) < tasa
-    nuevos = np.random.randint(0, n_cultivos, size=(n_parcelas, n_campañas))
+def mutar(plan, tasa, datos):
+    mascara = np.random.rand(*plan.shape) < tasa
+    nuevos = np.random.randint(0, datos.cultivos.n, size=plan.shape)
     return np.where(mascara, nuevos, plan)
 
 
-def algoritmo_genetico(n_individuos, generaciones, tasa, n_elite):
-    poblacion = poblacion_inicial(n_individuos)
+def algoritmo_genetico(datos, n_individuos, generaciones, tasa, n_elite):
+    poblacion = poblacion_inicial(datos, n_individuos)
     mejores = []
 
     for g in range(generaciones):
-        aptitudes = [aptitud(plan) for plan in poblacion]
+        aptitudes = [aptitud(plan, datos) for plan in poblacion]
         mejores.append(max(aptitudes))
         
         orden = np.argsort(aptitudes)[::-1]
@@ -90,12 +70,12 @@ def algoritmo_genetico(n_individuos, generaciones, tasa, n_elite):
             padre = torneo(poblacion, aptitudes)
             madre = torneo(poblacion, aptitudes)
             hijo = cruza(padre, madre)
-            hijo = mutar(hijo, tasa)
+            hijo = mutar(hijo, tasa, datos)
             nueva.append(hijo)
 
         poblacion = np.array(nueva)
 
-    aptitudes = [aptitud(plan) for plan in poblacion]
+    aptitudes = [aptitud(plan, datos) for plan in poblacion]
     mejor = poblacion[np.argmax(aptitudes)]
     return mejor, mejores
 
@@ -103,7 +83,8 @@ def algoritmo_genetico(n_individuos, generaciones, tasa, n_elite):
 
 
 if __name__ == "__main__":
-    mejor, evolucion = algoritmo_genetico(100, 200, 0.1, 2)
+    datos = cargar_datos()
+    mejor, evolucion = algoritmo_genetico(datos, 100, 200, 0.1, 2)
     print(mejor)
-    print("Aptitud final:", aptitud(mejor))
+    print("Aptitud final:", aptitud(mejor, datos))
     print("Primera generación:", evolucion[0], "Última:", evolucion[-1])
