@@ -14,7 +14,8 @@ def poblacion_inicial(datos, n_individuos):
     return np.array([plan_aleatorio(datos) for _ in range(n_individuos)])
 
 def evaluar_plan(plan, datos):
-
+    secuencia = np.hstack([datos.parcelas.historial, plan])
+    n_historial = datos.parcelas.historial.shape[1]
 
     c = datos.cultivos
     superficie = datos.parcelas.superficie
@@ -30,11 +31,13 @@ def evaluar_plan(plan, datos):
             margenes[s] -= (comprar * c.precio_semilla).sum()
             stock = np.zeros(c.n)
 
+            # Abono: un cultivo sembrado tras una leguminosa necesita menos
+            anterior = secuencia[:, n_historial + t - 1]
+            tras_leguminosa = c.es_leguminosa[anterior]
+            factor = np.where(tras_leguminosa, 1 - datos.reduccion_abono, 1)
+            abono_kg = c.abono_kg_ha[plan[:, t]] * factor * superficie
+            margenes[s] -= abono_kg.sum() * datos.precio_abono
 
-    secuencia = np.hstack([datos.parcelas.historial, plan])
-
-   
-    n_historial = datos.parcelas.historial.shape[1]
     violaciones = (repetir_familia_cultivo(secuencia, datos.cultivos.es_cereal, 2, n_historial)
                    + repetir_familia_cultivo(secuencia, datos.cultivos.es_leguminosa, 1, n_historial))
 

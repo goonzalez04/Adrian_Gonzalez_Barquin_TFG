@@ -12,7 +12,10 @@ class Cultivos:
     dosis: np.ndarray
     precio_semilla: np.ndarray
     stock_semilla: np.ndarray
+    abono_kg_ha: np.ndarray
     cosecha_kg_ha: np.ndarray
+    
+
 
     @property
     def n(self):
@@ -39,6 +42,7 @@ class Datos:
     cultivos: Cultivos
     parcelas: Parcelas
     tipo_anio: Tipo_Anio
+    reduccion_abono: float
     precio_abono: float 
     n_campañas: int = 3
     riesgo: float = 0.5
@@ -66,6 +70,7 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     #Parametros
     tabla_parametro = pd.read_csv(carpeta / "Parametros.csv", index_col=0)
     precio_abono = tabla_parametro.loc["precio_abono_kg", "valor"]
+    reduccion_abono = tabla_parametro.loc["reduccion_abono_tras_leguminosa", "valor"]
 
 
     #Factores de rendimiento por tipo de año (filas: bueno, mediocre, malo)
@@ -73,7 +78,8 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     cosecha_kg_ha = rendimiento*factores*1000
 
     #Beneficio por hectárea: una fila por tipo de año, una columna por cultivo
-    beneficio_ha = rendimiento * factores * precio + ayuda - coste - abono_kg_ha * precio_abono
+    beneficio_ha = rendimiento * factores * precio + ayuda - coste
+
 
 
 
@@ -81,7 +87,7 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     es_leguminosa = (tabla_cultivos["familia"] == "leguminosa").to_numpy()
 
     cultivos = Cultivos(nombres, beneficio_ha, es_cereal, es_leguminosa,
-                    dosis, precio_semilla, stock, cosecha_kg_ha)
+                    dosis, precio_semilla, stock, abono_kg_ha, cosecha_kg_ha)
 
 
     #Diccionario nombre -> numero, segun el orden en la tabla de cultivos
@@ -111,6 +117,6 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
 
     tipo_anio = Tipo_Anio(estados, probabilidades)
 
-    return Datos(cultivos, parcelas, tipo_anio, precio_abono)
+    return Datos(cultivos, parcelas, tipo_anio, reduccion_abono, precio_abono)
 
     
