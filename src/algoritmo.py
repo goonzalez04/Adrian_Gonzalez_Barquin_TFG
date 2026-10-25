@@ -14,8 +14,22 @@ def poblacion_inicial(datos, n_individuos):
     return np.array([plan_aleatorio(datos) for _ in range(n_individuos)])
 
 def evaluar_plan(plan, datos):
-    margenes = (datos.cultivos.beneficio_ha[:, plan] * datos.parcelas.superficie[None, :, None]).sum(axis=(1, 2))
-    
+
+
+    c = datos.cultivos
+    superficie = datos.parcelas.superficie
+    n_estados = len(datos.tipo_anio.estados)
+    margenes = np.zeros(n_estados)
+
+    for s in range(n_estados):
+        stock = c.stock_semilla.copy()
+        for t in range(datos.n_campañas):
+            ha = np.bincount(plan[:,t], weights=superficie, minlength=c.n)
+            margenes[s] += (c.beneficio_ha[s]*ha).sum()
+            comprar = np.maximum(0, c.dosis*ha-stock)
+            margenes[s] -= (comprar * c.precio_semilla).sum()
+            stock = np.zeros(c.n)
+
 
     secuencia = np.hstack([datos.parcelas.historial, plan])
 
