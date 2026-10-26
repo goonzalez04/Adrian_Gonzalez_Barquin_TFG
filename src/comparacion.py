@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from algoritmo import (algoritmo_genetico, plan_aleatorio, evaluar_plan, aptitud, n_parcelas, n_campañas, historial)
-from datos import cargar_datos
+from algoritmo import algoritmo_genetico, plan_aleatorio, evaluar_plan, aptitud
+from datos import cargar_datos, Datos
 
 def busqueda_aleatoria(datos, n_evaluaciones):
     mejor_plan = None
@@ -20,7 +20,7 @@ def repetir_con_semilla(datos, n_semillas):
 
     for i in range(n_semillas):
         np.random.seed(i)
-        mejor_ga, _ = algoritmo_genetico(datos, 100, 200, 0.1, 2)
+        mejor_ga, _ = algoritmo_genetico(datos)
         aptitudes_ga.append(aptitud(mejor_ga, datos))
 
         np.random.seed(i)
@@ -30,14 +30,34 @@ def repetir_con_semilla(datos, n_semillas):
     return np.array(aptitudes_ga), np.array(aptitudes_aleatorio)
 
 
+def comparar_perfiles(datos: Datos, perfiles):
+    resultados =[]
+    for nombre, valor in perfiles:
+        datos.riesgo = valor
+
+        np.random.seed(0)
+        mejor, _ = algoritmo_genetico(datos)
+        margenes, violaciones = evaluar_plan(mejor, datos)
+        esperado = np.dot(datos.tipo_anio.probabilidades, margenes)
+        resultados.append((nombre, mejor, esperado, margenes, violaciones))
+
+
+
+
+    return resultados
+
+
+
 
 
 if __name__ == "__main__":
     datos = cargar_datos()
     todo_trigo = np.zeros((datos.parcelas.n, datos.n_campañas), dtype=int)
     rotacion_pasada = datos.parcelas.historial
+
+    np.random.seed(0)
     mejor_aleatorio = busqueda_aleatoria(datos, 20000)
-    mejor_ga, evolucion = algoritmo_genetico(datos, 100, 200, 0.1, 2)
+    mejor_ga, evolucion = algoritmo_genetico(datos)
 
     # Repetir con varias semillas para ver si el resultado es estable
     aptitudes_ga, aptitudes_aleatorio = repetir_con_semilla(datos, 2)
@@ -47,6 +67,22 @@ if __name__ == "__main__":
                               ("Búsqueda aleatoria", aptitudes_aleatorio)]:
         print(f"{nombre:<22}{aptitudes.mean():>12.2f}{aptitudes.min():>12.2f}"
               f"{aptitudes.max():>12.2f}{aptitudes.std():>10.2f}")
+
+     # Comparar los planes según la actitud ante el riesgo
+    riesgo_original = datos.riesgo
+    perfiles = [("Arriesgado", 0), ("Neutral", 0.5), ("Prudente", 1)]
+    resultados = comparar_perfiles(datos, perfiles)
+    datos.riesgo = riesgo_original
+
+    bueno = datos.tipo_anio.estados.index("bueno")
+    malo = datos.tipo_anio.estados.index("malo")
+
+    print()
+    print(f"{'perfil':<14}{'esperado':>12}{'año bueno':>12}{'año malo':>12}{'violaciones':>13}")
+    for nombre, mejor, esperado, margenes, violaciones in resultados:
+        print(f"{nombre:<14}{esperado:>12.2f}{margenes[bueno]:>12.2f}"
+              f"{margenes[malo]:>12.2f}{violaciones:>13}")
+
 
     plt.figure(figsize=(9, 5))
     plt.plot(evolucion, label="Algoritmo genético (mejor de cada generación)")

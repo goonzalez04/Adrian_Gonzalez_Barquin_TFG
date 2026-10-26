@@ -9,6 +9,13 @@ class Cultivos:
     beneficio_ha: np.ndarray
     es_cereal: np.ndarray
     es_leguminosa: np.ndarray
+    dosis: np.ndarray
+    precio_semilla: np.ndarray
+    stock_semilla: np.ndarray
+    abono_kg_ha: np.ndarray
+    cosecha_kg_ha: np.ndarray
+    
+
 
     @property
     def n(self):
@@ -35,8 +42,11 @@ class Datos:
     cultivos: Cultivos
     parcelas: Parcelas
     tipo_anio: Tipo_Anio
+    reduccion_abono: float
+    precio_abono: float 
     n_campañas: int = 3
     riesgo: float = 0.5
+    
     
 
 def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos"):
@@ -51,18 +61,34 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     coste = tabla_cultivos["coste_ha"].to_numpy()
     factor_bueno = tabla_cultivos["factor_bueno"].to_numpy()
     factor_malo = tabla_cultivos["factor_malo"].to_numpy()
+    dosis = tabla_cultivos["dosis_kg_ha"].to_numpy()
+    precio_semilla = tabla_cultivos["precio_semilla_kg"].to_numpy()
+    stock = tabla_cultivos["stock_semilla_kg"].to_numpy()
+    abono_kg_ha = tabla_cultivos["abono_kg_ha"].to_numpy()
+    
+
+    #Parametros
+    tabla_parametro = pd.read_csv(carpeta / "Parametros.csv", index_col=0)
+    precio_abono = tabla_parametro.loc["precio_abono_kg", "valor"]
+    reduccion_abono = tabla_parametro.loc["reduccion_abono_tras_leguminosa", "valor"]
+
 
     #Factores de rendimiento por tipo de año (filas: bueno, mediocre, malo)
     factores = np.vstack([factor_bueno, np.ones(len(nombres)), factor_malo])
+    cosecha_kg_ha = rendimiento*factores*1000
 
     #Beneficio por hectárea: una fila por tipo de año, una columna por cultivo
     beneficio_ha = rendimiento * factores * precio + ayuda - coste
 
 
+
+
     es_cereal = (tabla_cultivos["familia"] == "cereal").to_numpy()
     es_leguminosa = (tabla_cultivos["familia"] == "leguminosa").to_numpy()
 
-    cultivos = Cultivos(nombres, beneficio_ha, es_cereal, es_leguminosa)
+    cultivos = Cultivos(nombres, beneficio_ha, es_cereal, es_leguminosa,
+                    dosis, precio_semilla, stock, abono_kg_ha, cosecha_kg_ha)
+
 
     #Diccionario nombre -> numero, segun el orden en la tabla de cultivos
     nombre_a_numero = {nombre: i for i, nombre in enumerate(nombres)}
@@ -91,5 +117,6 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
 
     tipo_anio = Tipo_Anio(estados, probabilidades)
 
-    return Datos(cultivos, parcelas, tipo_anio)
+    return Datos(cultivos, parcelas, tipo_anio, reduccion_abono, precio_abono)
+
     
