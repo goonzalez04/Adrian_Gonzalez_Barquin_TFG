@@ -19,24 +19,28 @@ def evaluar_plan(plan, datos):
 
     c = datos.cultivos
     superficie = datos.parcelas.superficie
-    n_estados = len(datos.tipo_anio.estados)
-    margenes = np.zeros(n_estados)
 
-    for s in range(n_estados):
-        stock = c.stock_semilla.copy()
-        for t in range(datos.n_campañas):
-            ha = np.bincount(plan[:,t], weights=superficie, minlength=c.n)
-            margenes[s] += (c.beneficio_ha[s]*ha).sum()
-            comprar = np.maximum(0, c.dosis*ha-stock)
-            margenes[s] -= (comprar * c.precio_semilla).sum()
-            stock = np.zeros(c.n)
+    ha_total = np.zeros(c.n)
+    costes = 0
+    stock = c.stock_semilla.copy()
 
-            # Abono: un cultivo sembrado tras una leguminosa necesita menos
-            anterior = secuencia[:, n_historial + t - 1]
-            tras_leguminosa = c.es_leguminosa[anterior]
-            factor = np.where(tras_leguminosa, 1 - datos.reduccion_abono, 1)
-            abono_kg = c.abono_kg_ha[plan[:, t]] * factor * superficie
-            margenes[s] -= abono_kg.sum() * datos.precio_abono
+    for t in range(datos.n_campañas):
+        ha = np.bincount(plan[:, t], weights=superficie, minlength=c.n)
+        ha_total += ha
+
+        comprar = np.maximum(0, c.dosis * ha - stock)
+        costes += (comprar * c.precio_semilla).sum()
+        stock = np.zeros(c.n)
+
+        # Abono: un cultivo sembrado tras una leguminosa necesita menos
+        anterior = secuencia[:, n_historial + t - 1]
+        tras_leguminosa = c.es_leguminosa[anterior]
+        factor = np.where(tras_leguminosa, 1 - datos.reduccion_abono, 1)
+        abono_kg = c.abono_kg_ha[plan[:, t]] * factor * superficie
+        costes += abono_kg.sum() * datos.precio_abono
+
+    # Un margen por tipo de año: solo el beneficio depende de si el año es bueno o malo
+    margenes = c.beneficio_ha @ ha_total - costes
 
     violaciones = (repetir_familia_cultivo(secuencia, datos.cultivos.es_cereal, 2, n_historial)
                    + repetir_familia_cultivo(secuencia, datos.cultivos.es_leguminosa, 1, n_historial))
@@ -76,15 +80,34 @@ def mutar(plan, tasa, datos):
     nuevos = np.random.randint(0, datos.cultivos.n, size=plan.shape)
     return np.where(mascara, nuevos, plan)
 
+def parametros_GA(datos):
+    casillas= datos.parcelas.n*datos.n_campañas
+    tasa = 1/casillas
+    n_individuos = int(np.clip(10 * casillas, 50, 300))
+    return n_individuos, tasa
 
-def algoritmo_genetico(datos, n_individuos, generaciones, tasa, n_elite):
+
+def algoritmo_genetico(datos, n_elite=2, paciencia=50, max_generaciones=2000):
+    n_individuos, tasa = parametros_GA(datos)
     poblacion = poblacion_inicial(datos, n_individuos)
     mejores = []
 
-    for g in range(generaciones):
+    mejor_hasta_ahora = -np.inf
+    sin_mejora = 0
+    generacion = 0
+
+
+    while sin_mejora < paciencia and generacion < max_generaciones:
         aptitudes = [aptitud(plan, datos) for plan in poblacion]
-        mejores.append(max(aptitudes))
-        
+        mejor_de_esta = max(aptitudes)
+        mejores.append(mejor_de_esta)
+
+        if mejor_de_esta > mejor_hasta_ahora:
+            mejor_hasta_ahora = mejor_de_esta
+            sin_mejora = 0
+        else:
+            sin_mejora += 1
+
         orden = np.argsort(aptitudes)[::-1]
         nueva = [poblacion[i] for i in orden[:n_elite]]
 
@@ -96,17 +119,34 @@ def algoritmo_genetico(datos, n_individuos, generaciones, tasa, n_elite):
             nueva.append(hijo)
 
         poblacion = np.array(nueva)
+        generacion += 1
 
     aptitudes = [aptitud(plan, datos) for plan in poblacion]
     mejor = poblacion[np.argmax(aptitudes)]
     return mejor, mejores
 
 
+def optimizar(datos, n_reinicios=5):
+    mejor_plan = None
+    mejor_aptitud = -np.inf
+    mejor_evolucion = None
+
+    for i in range(n_reinicios):
+        plan, evolucion = algoritmo_genetico(datos)
+        a= aptitud(plan, datos)
+        if a > mejor_aptitud:
+            mejor_plan = plan
+            mejor_aptitud = a
+            mejor_evolucion = evolucion
+    
+    return mejor_plan, mejor_evolucion
+
+
 
 
 if __name__ == "__main__":
     datos = cargar_datos()
-    mejor, evolucion = algoritmo_genetico(datos, 100, 200, 0.1, 2)
+    mejor, evolucion = optimizar(datos)
     print(mejor)
     margenes, violaciones = evaluar_plan(mejor, datos)
     print("Márgenes (bueno, mediocre, malo):", margenes)

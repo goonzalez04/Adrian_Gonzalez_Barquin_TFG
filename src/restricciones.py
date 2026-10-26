@@ -2,19 +2,17 @@ import numpy as np
 import pandas as pd
 
 def repetir_familia_cultivo(secuencia, familia, maximo, desde=0):
-   
+    es_familia = familia[secuencia]
+    contador = np.zeros(secuencia.shape[0], dtype=int)
     violaciones = 0
-    for parcela in range(secuencia.shape[0]):
-        count = 0
-        for año in range(secuencia.shape[1]):
-            if familia[secuencia[parcela, año]]:
-                count += 1
-                if count > maximo and año >= desde:
-                    violaciones += 1
-
-            else:
-                count = 0
+    for año in range(secuencia.shape[1]):
+        contador = np.where(es_familia[:, año], contador + 1, 0)
+        if año >= desde:
+            violaciones += (contador > maximo).sum()
     return violaciones
+
+   
+    
 
 
 def rotacion_cultivos(secuencia, superficie, n_cultivos, max_anios=3, desde=0):

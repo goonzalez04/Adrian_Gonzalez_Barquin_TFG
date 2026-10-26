@@ -20,7 +20,7 @@ def repetir_con_semilla(datos, n_semillas):
 
     for i in range(n_semillas):
         np.random.seed(i)
-        mejor_ga, _ = algoritmo_genetico(datos, 100, 200, 0.1, 2)
+        mejor_ga, _ = algoritmo_genetico(datos)
         aptitudes_ga.append(aptitud(mejor_ga, datos))
 
         np.random.seed(i)
@@ -36,7 +36,7 @@ def comparar_perfiles(datos: Datos, perfiles):
         datos.riesgo = valor
 
         np.random.seed(0)
-        mejor, _ = algoritmo_genetico(datos, 100, 200, 0.1, 2)
+        mejor, _ = algoritmo_genetico(datos)
         margenes, violaciones = evaluar_plan(mejor, datos)
         esperado = np.dot(datos.tipo_anio.probabilidades, margenes)
         resultados.append((nombre, mejor, esperado, margenes, violaciones))
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     np.random.seed(0)
     mejor_aleatorio = busqueda_aleatoria(datos, 20000)
-    mejor_ga, evolucion = algoritmo_genetico(datos, 100, 200, 0.1, 2)
+    mejor_ga, evolucion = algoritmo_genetico(datos)
 
     # Repetir con varias semillas para ver si el resultado es estable
     aptitudes_ga, aptitudes_aleatorio = repetir_con_semilla(datos, 2)
