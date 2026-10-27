@@ -53,6 +53,7 @@ class Datos:
     reduccion_abono: float
     precio_abono: float
     ayudas: Ayudas
+    descuento_anual: float
     n_campañas: int = 3
     riesgo: float = 0.5
 
@@ -87,6 +88,7 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     ecorregimen = tabla_parametro.loc["ecorregimen_anual", "valor"]
     
     ayudas = Ayudas(basica, redistributiva, ecorregimen)
+    descuento = tabla_parametro.loc["descuento_anual", "valor"]
 
 
     #Factores de rendimiento por tipo de año (filas: bueno, mediocre, malo)
@@ -133,6 +135,6 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
 
     tipo_anio = Tipo_Anio(estados, probabilidades)
 
-    return Datos(cultivos, parcelas, tipo_anio, reduccion_abono, precio_abono, ayudas)
+    return Datos(cultivos, parcelas, tipo_anio, reduccion_abono, precio_abono, ayudas, descuento)
 
     
