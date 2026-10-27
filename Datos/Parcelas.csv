@@ -1,6 +1,6 @@
 id,superficie_ha,anio_-3,anio_-2,anio_-1
-P1,12.5,veza,trigo,cebada
-P2,8.0,cebada,trigo,veza
-P3,15.2,veza,cebada,trigo
-P4,6.8,trigo,trigo,veza
-P5,10.0,cebada,veza,trigo
+P1,12.5,titarro,trigo,cebada
+P2,8.0,cebada,trigo,titarro
+P3,15.2,titarro,cebada,trigo
+P4,6.8,trigo,trigo,titarro
+P5,10.0,cebada,titarro,trigo

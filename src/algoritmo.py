@@ -13,6 +13,11 @@ def plan_aleatorio(datos):
 def poblacion_inicial(datos, n_individuos):
     return np.array([plan_aleatorio(datos) for _ in range(n_individuos)])
 
+def ayudas_fijas(datos):
+    a = datos.ayudas
+
+    return a.basica_anual + a.redistributiva_anual + a.ecorregimen_anual
+
 def evaluar_plan(plan, datos):
     secuencia = np.hstack([datos.parcelas.historial, plan])
     n_historial = datos.parcelas.historial.shape[1]
@@ -40,7 +45,7 @@ def evaluar_plan(plan, datos):
         costes += abono_kg.sum() * datos.precio_abono
 
     # Un margen por tipo de año: solo el beneficio depende de si el año es bueno o malo
-    margenes = c.beneficio_ha @ ha_total - costes
+    margenes = c.beneficio_ha @ ha_total - costes +datos.n_campañas*ayudas_fijas(datos)
 
     violaciones = (repetir_familia_cultivo(secuencia, datos.cultivos.es_cereal, 2, n_historial)
                    + repetir_familia_cultivo(secuencia, datos.cultivos.es_leguminosa, 1, n_historial))

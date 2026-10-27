@@ -37,15 +37,26 @@ class Tipo_Anio:
     estados: list
     probabilidades: np.ndarray
 
+
+@dataclass
+class Ayudas:
+    basica_anual: float
+    redistributiva_anual: float
+    ecorregimen_anual: float
+ 
+
 @dataclass
 class Datos:
     cultivos: Cultivos
     parcelas: Parcelas
     tipo_anio: Tipo_Anio
     reduccion_abono: float
-    precio_abono: float 
+    precio_abono: float
+    ayudas: Ayudas
     n_campañas: int = 3
     riesgo: float = 0.5
+
+
     
     
 
@@ -57,7 +68,7 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     nombres = tabla_cultivos.index.to_list()
     rendimiento = tabla_cultivos["rendimiento_toneladas_ha"].to_numpy()
     precio = tabla_cultivos["precio_tonelada"].to_numpy()
-    ayuda = tabla_cultivos["ayuda_PAC_ha"].to_numpy()
+    ayuda = tabla_cultivos["ayuda_asociada_PAC"].to_numpy()
     coste = tabla_cultivos["coste_ha"].to_numpy()
     factor_bueno = tabla_cultivos["factor_bueno"].to_numpy()
     factor_malo = tabla_cultivos["factor_malo"].to_numpy()
@@ -71,6 +82,11 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     tabla_parametro = pd.read_csv(carpeta / "Parametros.csv", index_col=0)
     precio_abono = tabla_parametro.loc["precio_abono_kg", "valor"]
     reduccion_abono = tabla_parametro.loc["reduccion_abono_tras_leguminosa", "valor"]
+    basica = tabla_parametro.loc["ayuda_basica_anual", "valor"]
+    redistributiva = tabla_parametro.loc["ayuda_redistributiva_anual", "valor"]
+    ecorregimen = tabla_parametro.loc["ecorregimen_anual", "valor"]
+    
+    ayudas = Ayudas(basica, redistributiva, ecorregimen)
 
 
     #Factores de rendimiento por tipo de año (filas: bueno, mediocre, malo)
@@ -117,6 +133,6 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
 
     tipo_anio = Tipo_Anio(estados, probabilidades)
 
-    return Datos(cultivos, parcelas, tipo_anio, reduccion_abono, precio_abono)
+    return Datos(cultivos, parcelas, tipo_anio, reduccion_abono, precio_abono, ayudas)
 
     
