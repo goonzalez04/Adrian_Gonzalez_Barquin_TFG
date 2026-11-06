@@ -3,6 +3,8 @@ import pathlib
 import pandas as pd
 from restricciones import repetir_familia_cultivo, diversificacion_pac, rotacion_cultivos
 from datos import cargar_datos
+from multiprocessing import Pool
+
 
 
 
@@ -143,20 +145,21 @@ def algoritmo_genetico(datos, n_elite=2, paciencia=100, max_generaciones=2000):
     return mejor, mejores
 
 
-def optimizar(datos, n_reinicios=5):
-    mejor_plan = None
-    mejor_aptitud = -np.inf
-    mejor_evolucion = None
+def un_reinicio(argumentos):
+    datos, semilla = argumentos
+    np.random.seed(semilla)
+    return algoritmo_genetico(datos)
 
-    for i in range(n_reinicios):
-        plan, evolucion = algoritmo_genetico(datos)
-        a= aptitud(plan, datos)
-        if a > mejor_aptitud:
-            mejor_plan = plan
-            mejor_aptitud = a
-            mejor_evolucion = evolucion
+def optimizar(datos, n_reinicios=5, semilla=None):
     
-    return mejor_plan, mejor_evolucion
+    semillas = np.random.default_rng(semilla).integers(0, 2**31 - 1, n_reinicios)
+
+    
+    with Pool() as pool:
+        resultados = pool.map(un_reinicio, [(datos, int(s)) for s in semillas])
+
+    return max(resultados, key=lambda r: aptitud(r[0], datos))
+
 
 
 
@@ -165,8 +168,7 @@ if __name__ == "__main__":
 
     archivo = pathlib.Path(__file__).resolve().parent.parent / "Datos" / "Parcelas" / "Parcelas_2026_historial_inventado.csv"
     datos = cargar_datos(archivo_parcelas=archivo)
-    np.random.seed(0)
-    mejor, evolucion = optimizar(datos, n_reinicios=2)
+    mejor, evolucion = optimizar(datos, n_reinicios=5, semilla = 0)
 
     nombres = datos.cultivos.nombres
     plan = pd.DataFrame({
