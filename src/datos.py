@@ -37,19 +37,31 @@ class Tipo_Anio:
     estados: list
     probabilidades: np.ndarray
 
+
+@dataclass
+class Ayudas:
+    basica_anual: float
+    redistributiva_anual: float
+    ecorregimen_anual: float
+ 
+
 @dataclass
 class Datos:
     cultivos: Cultivos
     parcelas: Parcelas
     tipo_anio: Tipo_Anio
     reduccion_abono: float
-    precio_abono: float 
+    precio_abono: float
+    ayudas: Ayudas
+    descuento_anual: float
     n_campañas: int = 3
     riesgo: float = 0.5
+
+
     
     
 
-def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos"):
+def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos", archivo_parcelas = None):
 
     #Cultivos
     tabla_cultivos = pd.read_csv(carpeta / "Cultivos.csv", index_col=0)
@@ -57,7 +69,7 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     nombres = tabla_cultivos.index.to_list()
     rendimiento = tabla_cultivos["rendimiento_toneladas_ha"].to_numpy()
     precio = tabla_cultivos["precio_tonelada"].to_numpy()
-    ayuda = tabla_cultivos["ayuda_PAC_ha"].to_numpy()
+    ayuda = tabla_cultivos["ayuda_asociada_PAC"].to_numpy()
     coste = tabla_cultivos["coste_ha"].to_numpy()
     factor_bueno = tabla_cultivos["factor_bueno"].to_numpy()
     factor_malo = tabla_cultivos["factor_malo"].to_numpy()
@@ -71,6 +83,12 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     tabla_parametro = pd.read_csv(carpeta / "Parametros.csv", index_col=0)
     precio_abono = tabla_parametro.loc["precio_abono_kg", "valor"]
     reduccion_abono = tabla_parametro.loc["reduccion_abono_tras_leguminosa", "valor"]
+    basica = tabla_parametro.loc["ayuda_basica_anual", "valor"]
+    redistributiva = tabla_parametro.loc["ayuda_redistributiva_anual", "valor"]
+    ecorregimen = tabla_parametro.loc["ecorregimen_anual", "valor"]
+    
+    ayudas = Ayudas(basica, redistributiva, ecorregimen)
+    descuento = tabla_parametro.loc["descuento_anual", "valor"]
 
 
     #Factores de rendimiento por tipo de año (filas: bueno, mediocre, malo)
@@ -94,12 +112,17 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     nombre_a_numero = {nombre: i for i, nombre in enumerate(nombres)}
 
     #Parcelas
-    tabla_parcelas = pd.read_csv(carpeta / "Parcelas.csv", index_col=0)
+    if archivo_parcelas is None:
+        archivo_parcelas = carpeta / "Parcelas.csv"
+    tabla_parcelas = pd.read_csv(archivo_parcelas, index_col=0)
+
 
     ids = tabla_parcelas.index.to_list()
     superficie = tabla_parcelas["superficie_ha"].to_numpy()
 
-    columnas_historial = ["anio_-3", "anio_-2", "anio_-1"]
+    columnas_historial = sorted((col for col in tabla_parcelas.columns if col.startswith("anio_")),
+                                key=lambda col: int(col.split("_")[1]))
+
     historial = np.array([[nombre_a_numero[nombre] for nombre in fila] for fila in tabla_parcelas[columnas_historial].to_numpy()])
 
     parcelas = Parcelas(ids, superficie, historial)
@@ -117,6 +140,6 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
 
     tipo_anio = Tipo_Anio(estados, probabilidades)
 
-    return Datos(cultivos, parcelas, tipo_anio, reduccion_abono, precio_abono)
+    return Datos(cultivos, parcelas, tipo_anio, reduccion_abono, precio_abono, ayudas, descuento)
 
     
