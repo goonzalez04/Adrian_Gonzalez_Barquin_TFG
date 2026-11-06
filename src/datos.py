@@ -61,7 +61,7 @@ class Datos:
     
     
 
-def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos"):
+def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos", archivo_parcelas = None):
 
     #Cultivos
     tabla_cultivos = pd.read_csv(carpeta / "Cultivos.csv", index_col=0)
@@ -112,12 +112,17 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     nombre_a_numero = {nombre: i for i, nombre in enumerate(nombres)}
 
     #Parcelas
-    tabla_parcelas = pd.read_csv(carpeta / "Parcelas.csv", index_col=0)
+    if archivo_parcelas is None:
+        archivo_parcelas = carpeta / "Parcelas.csv"
+    tabla_parcelas = pd.read_csv(archivo_parcelas, index_col=0)
+
 
     ids = tabla_parcelas.index.to_list()
     superficie = tabla_parcelas["superficie_ha"].to_numpy()
 
-    columnas_historial = ["anio_-3", "anio_-2", "anio_-1"]
+    columnas_historial = sorted((col for col in tabla_parcelas.columns if col.startswith("anio_")),
+                                key=lambda col: int(col.split("_")[1]))
+
     historial = np.array([[nombre_a_numero[nombre] for nombre in fila] for fila in tabla_parcelas[columnas_historial].to_numpy()])
 
     parcelas = Parcelas(ids, superficie, historial)

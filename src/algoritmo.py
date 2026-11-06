@@ -1,5 +1,6 @@
 import numpy as np
-
+import pathlib
+import pandas as pd
 from restricciones import repetir_familia_cultivo, diversificacion_pac, rotacion_cultivos
 from datos import cargar_datos
 
@@ -161,14 +162,30 @@ def optimizar(datos, n_reinicios=5):
 
 
 if __name__ == "__main__":
-    datos = cargar_datos()
-    mejor, evolucion = optimizar(datos)
-    print(mejor)
+
+    archivo = pathlib.Path(__file__).resolve().parent.parent / "Datos" / "Parcelas" / "Parcelas_2026_historial_inventado.csv"
+    datos = cargar_datos(archivo_parcelas=archivo)
+    np.random.seed(0)
+    mejor, evolucion = optimizar(datos, n_reinicios=2)
+
+    nombres = datos.cultivos.nombres
+    plan = pd.DataFrame({
+        "recinto": datos.parcelas.ids,
+        "ha": datos.parcelas.superficie,
+        "año 1": [nombres[c] for c in mejor[:, 0]],
+        "año 2": [nombres[c] for c in mejor[:, 1]],
+        "año 3": [nombres[c] for c in mejor[:, 2]],
+    })
+    print(plan.to_string(index=False))
+
+    print("\nHectáreas del año 1 por cultivo:")
+    print(plan.groupby("año 1")["ha"].sum().round(2))
+
     margenes, violaciones = evaluar_plan(mejor, datos)
+    print("\nViolaciones:", violaciones)
     tabla = margenes_por_campaña(mejor, datos)
-    print("Margen por campaña (filas: bueno, mediocre, malo):")
-    print(tabla.round(2))
     año1 = tabla[:, 0]
+    print("Año 1 (bueno, mediocre, malo):", año1.round(2))
     print("Año 1 esperado:", np.dot(datos.tipo_anio.probabilidades, año1).round(2))
 
 

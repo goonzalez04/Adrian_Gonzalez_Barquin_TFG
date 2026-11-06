@@ -44,8 +44,9 @@ def leer_declaracion(ruta_pdf):
 
 if __name__ == "__main__":
     carpeta_pac = pathlib.Path("E:/TFG/PAC")
+    carpeta_Parcelas = pathlib.Path("E:/TFG/Adrian_Gonzalez_Barquin_TFG/Datos/Parcelas")
     parcelas = leer_declaracion(carpeta_pac / "2026.pdf")
-    parcelas.to_csv(carpeta_pac / "Parcelas_2026.csv", index=False)
+    parcelas.to_csv(carpeta_Parcelas / "Parcelas_2026.csv", index=False)
 
     print("Recintos:", len(parcelas))
     print("Superficie total:", parcelas["superficie_ha"].sum().round(2), "ha")
