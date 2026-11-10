@@ -1,11 +1,12 @@
 import numpy as np
 
-from restricciones import repetir_familia_cultivo, rotacion_cultivos, diversificacion_pac
+from restricciones import repetir_familia_cultivo, rotacion_cultivos, diversificacion_pac, retorno_minimo
 
 # 0 = trigo, 1 = cebada, 2 = titarro, 3 = barbecho
 ES_CEREAL = np.array([True, True, False, False])
 ES_LEGUMINOSA = np.array([False, False, True, False])
 N_CULTIVOS = 4
+RETORNO_MIN = np.array([1, 1, 4, 1])                  # el titarro tarda 4 años en volver
 
 
 # --- Cereal como mucho 2 años seguidos, leguminosa como mucho 1 ---
@@ -97,3 +98,32 @@ def test_explotacion_de_10_ha_o_menos_exenta_de_diversificacion():
     plan = np.array([[0], [0]])
     superficie = np.array([5.0, 5.0])
     assert diversificacion_pac(plan, superficie, N_CULTIVOS) == 0
+
+
+# --- Retorno mínimo: el titarro no vuelve a la misma parcela hasta pasados 4 años ---
+
+def test_titarro_a_los_2_años_es_una_violacion():
+    secuencia = np.array([[2, 0, 2]])                 # titarro, trigo, titarro
+    assert retorno_minimo(secuencia, RETORNO_MIN) == 1
+
+
+def test_titarro_a_los_3_años_es_una_violacion():
+    secuencia = np.array([[2, 0, 1, 2]])              # titarro, trigo, cebada, titarro
+    assert retorno_minimo(secuencia, RETORNO_MIN) == 1
+
+
+def test_titarro_a_los_4_años_se_permite():
+    secuencia = np.array([[2, 0, 1, 0, 2]])
+    assert retorno_minimo(secuencia, RETORNO_MIN) == 0
+
+
+def test_cultivos_con_retorno_1_pueden_repetirse():
+    # El trigo seguido no lo controla esta regla, sino la rotación PAC
+    secuencia = np.array([[0, 0, 0]])
+    assert retorno_minimo(secuencia, RETORNO_MIN) == 0
+
+
+def test_retorno_no_cuenta_repeticiones_que_solo_estan_en_el_historial():
+    # Los 3 años son historial: el plan aún no ha empezado
+    secuencia = np.array([[2, 0, 2]])
+    assert retorno_minimo(secuencia, RETORNO_MIN, desde=3) == 0
