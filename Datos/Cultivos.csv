@@ -1,6 +1,6 @@
 cultivo,familia,rendimiento_toneladas_ha,precio_tonelada,coste_ha,ayuda_asociada_PAC,factor_bueno,factor_malo,dosis_kg_ha,precio_semilla_kg,stock_semilla_kg,abono_kg_ha
-trigo,cereal,3.26,229,280,0,1.35,0.55,250,0.80,10713,350
-cebada,cereal,2.94,219,270,0,1.35,0.55,250,0.70,13617,300
-titarro,leguminosa,0.92,168,100,60,1.30,0.45,200,1,7560,0
-barbecho,barbecho,0,0,100,0,1,1,0,0,0,0
+trigo,cereal,3.26,229,340,0,1.35,0.55,250,0.80,10713,350
+cebada,cereal,2.94,219,340,0,1.35,0.55,250,0.70,13617,300
+titarro,leguminosa,3.8,150,420,60,1.33,0.67,200,1,7560,0
+barbecho,barbecho,0,0,85,0,1,1,0,0,0,0
 
