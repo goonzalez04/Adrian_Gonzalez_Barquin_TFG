@@ -166,7 +166,7 @@ def optimizar(datos, n_reinicios=5, semilla=None):
 
 if __name__ == "__main__":
 
-    archivo = pathlib.Path(__file__).resolve().parent.parent / "Datos" / "Parcelas" / "Parcelas_2026_historial_inventado.csv"
+    archivo = pathlib.Path(__file__).resolve().parent.parent / "Datos" / "Parcelas" / "Parcelas_real.csv"
     datos = cargar_datos(archivo_parcelas=archivo)
     mejor, evolucion = optimizar(datos, n_reinicios=5, semilla = 0)
 
