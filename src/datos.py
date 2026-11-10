@@ -14,7 +14,7 @@ class Cultivos:
     stock_semilla: np.ndarray
     abono_kg_ha: np.ndarray
     cosecha_kg_ha: np.ndarray
-    
+    retorno_min: np.ndarray
 
 
     @property
@@ -77,6 +77,7 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     precio_semilla = tabla_cultivos["precio_semilla_kg"].to_numpy()
     stock = tabla_cultivos["stock_semilla_kg"].to_numpy()
     abono_kg_ha = tabla_cultivos["abono_kg_ha"].to_numpy()
+    retorno_min = tabla_cultivos["retorno_min_anios"].to_numpy()
     
 
     #Parametros
@@ -105,7 +106,7 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     es_leguminosa = (tabla_cultivos["familia"] == "leguminosa").to_numpy()
 
     cultivos = Cultivos(nombres, beneficio_ha, es_cereal, es_leguminosa,
-                    dosis, precio_semilla, stock, abono_kg_ha, cosecha_kg_ha)
+                    dosis, precio_semilla, stock, abono_kg_ha, cosecha_kg_ha, retorno_min)
 
 
     #Diccionario nombre -> numero, segun el orden en la tabla de cultivos
