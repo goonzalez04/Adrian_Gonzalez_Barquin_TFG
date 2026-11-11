@@ -23,6 +23,7 @@ def datos_a_mano(superficie, historial, n_campañas=1, beneficio_trigo=(0, 0, 0)
         stock_semilla=np.array([float(stock_trigo), 10000.0]),
         abono_kg_ha=np.array([float(abono_trigo), 0.0]),
         cosecha_kg_ha=np.zeros((3, 2)),
+        retorno_min=np.array([1, 4]),
     )
     parcelas = Parcelas(
         ids=[f"P{i}" for i in range(len(superficie))],
@@ -100,12 +101,23 @@ def test_con_descuento_1_el_total_es_la_suma_de_las_campañas():
 # --- Aptitud ---
 
 def test_cada_violacion_resta_10000():
-    # Titarro el año pasado y titarro otra vez: una violación (leguminosa 2 años)
-    # y margen 0, así que la aptitud es justo -10 000
+    # Titarro el año pasado y titarro otra vez: dos violaciones (leguminosa
+    # 2 años seguidos y retorno del titarro) y margen 0, así que la aptitud es -20 000
     datos = datos_a_mano(superficie=[1], historial=[[TITARRO]])
     plan = np.array([[TITARRO]])
-    assert evaluar_plan(plan, datos)[1] == 1
-    assert aptitud(plan, datos) == pytest.approx(-10000)
+    assert evaluar_plan(plan, datos)[1] == 2
+    assert aptitud(plan, datos) == pytest.approx(-20000)
+
+
+def test_titarro_antes_de_4_años_es_una_violacion():
+    # Titarro hace 3 años y titarro otra vez en el plan: no han pasado 4 años
+    datos = datos_a_mano(superficie=[1], historial=[[TITARRO, TRIGO, TRIGO]])
+    assert evaluar_plan(np.array([[TITARRO]]), datos)[1] == 1
+
+
+def test_titarro_a_los_4_años_no_es_violacion():
+    datos = datos_a_mano(superficie=[1], historial=[[TITARRO, TRIGO, TRIGO, TRIGO]])
+    assert evaluar_plan(np.array([[TITARRO]]), datos)[1] == 0
 
 
 def test_sin_riesgo_la_aptitud_es_el_margen_esperado():

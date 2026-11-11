@@ -57,3 +57,18 @@ def diversificacion_pac(plan, superficie, n_cultivos):
         if max_dos is not None and ordenado[:2].sum() / total > max_dos:
             violaciones += 1
     return violaciones
+
+
+def retorno_minimo(secuencia, retorno_min, desde=0):
+    # Un cultivo no puede volver a la misma parcela hasta que pasen
+    # retorno_min años (titarro 4: si se siembra en 2026, no vuelve hasta 2030)
+    violaciones = 0
+    for anio in range(desde, secuencia.shape[1]):
+        cultivo = secuencia[:, anio]
+        espera = retorno_min[cultivo]
+        for s in range(1, retorno_min.max()):
+            if anio - s < 0:
+                break
+            repetido = secuencia[:, anio - s] == cultivo
+            violaciones += (repetido & (s < espera)).sum()
+    return violaciones

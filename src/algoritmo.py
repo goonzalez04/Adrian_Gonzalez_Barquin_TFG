@@ -1,7 +1,7 @@
 import numpy as np
 import pathlib
 import pandas as pd
-from restricciones import repetir_familia_cultivo, diversificacion_pac, rotacion_cultivos
+from restricciones import repetir_familia_cultivo, diversificacion_pac, retorno_minimo, rotacion_cultivos
 from datos import cargar_datos
 from multiprocessing import Pool
 
@@ -61,11 +61,12 @@ def evaluar_plan(plan, datos):
     margenes = margenes_por_campaña(plan, datos) @ pesos
 
 
-    violaciones = (repetir_familia_cultivo(secuencia, datos.cultivos.es_cereal, 2, n_historial)
+    violaciones = (repetir_familia_cultivo(secuencia, datos.cultivos.es_cereal, 3, n_historial)
                    + repetir_familia_cultivo(secuencia, datos.cultivos.es_leguminosa, 1, n_historial))
 
     # BCAM 7 de la PAC (modalidad A): rotación de cultivos y diversificación
-    violaciones += rotacion_cultivos(secuencia, datos.parcelas.superficie, datos.cultivos.n, desde=n_historial)
+    violaciones += rotacion_cultivos(secuencia, datos.parcelas.superficie, datos.cultivos.n, max_anios=2, desde=n_historial)
+    violaciones += retorno_minimo(secuencia, datos.cultivos.retorno_min, desde=n_historial)
     violaciones += diversificacion_pac(plan, datos.parcelas.superficie, datos.cultivos.n)
 
     return margenes, violaciones
