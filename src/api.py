@@ -22,3 +22,19 @@ def cultivos():
         })
 
     return resultado
+
+
+@app.get("/parcelas")
+def parcelas():
+    datos = cargar_datos()
+    p = datos.parcelas
+    nombres = datos.cultivos.nombres
+    resultado = []
+    for i in range(p.n):
+        resultado.append({
+            "id" : p.ids[i],
+            "superficie_ha": float(p.superficie[i]),
+            "historial": [nombres[c] for c in p.historial[i]]
+        })
+
+    return resultado
