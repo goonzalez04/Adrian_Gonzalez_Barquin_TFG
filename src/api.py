@@ -1,11 +1,14 @@
+import pathlib
+
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+
 from datos import cargar_datos
 
-app = FastAPI()
 
-@app.get("/saludo")
-async def saludo():
-    return {"message": "¡Hola! Bienvenido a la API."}
+app = FastAPI()
+RUTA_WEB = pathlib.Path(__file__).resolve().parent.parent / "web" 
+
 
 
 @app.get("/cultivos")
@@ -38,3 +41,9 @@ def parcelas():
         })
 
     return resultado
+
+
+
+@app.get("/")
+def web():
+    return FileResponse(RUTA_WEB / "index.html")

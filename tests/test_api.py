@@ -19,3 +19,9 @@ def test_parcelas_tiene_superficie_e_historial():
     assert len(lista)==datos.parcelas.n
     for p in lista:
         assert len(p["historial"]) == datos.parcelas.historial.shape[1]
+
+
+def test_pagina_pricipal():
+    respuesta = cliente.get("/")
+    assert respuesta.status_code == 200
+    assert 'mapa' in respuesta.text
