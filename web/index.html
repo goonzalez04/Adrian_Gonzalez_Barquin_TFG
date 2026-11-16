@@ -40,9 +40,33 @@
         capaSigpac.addTo(mapa);
 
         L.control.layers(
-            {"Mapa": capaOSM, "Satelite": capaSatelite},
+            {"Mapa": capaOSM, "Satélite": capaSatelite},
             {"Recintos SIGPAC": capaSigpac}
         ).addTo(mapa);
+    </script>
+
+    <h2>Cultivos</h2>
+    <table id="tabla-cultivos">
+        <thead>
+            <tr><th>Cultivo</th><th>Dosis (kg/ha)</th><th>Stock Semilla</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <script>
+        async function cargarCultivos() {
+            const respuesta = await fetch("/cultivos");
+            const cultivos = await respuesta.json();
+
+            const cuerpo = document.querySelector("#tabla-cultivos tbody");
+            for (const c of cultivos){
+                const fila = document.createElement("tr");
+                fila.innerHTML = `<td>${c.nombre}</td><td>${c.dosis_kg_ha}</td><td>${c.stock_semilla_kg}</td>`
+                cuerpo.appendChild(fila)
+            }
+            
+        }
+
+        cargarCultivos()
     </script>
 </body>
 </html>
