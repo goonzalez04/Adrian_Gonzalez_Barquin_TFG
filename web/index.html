@@ -15,10 +15,34 @@
     <script>
         const mapa = L.map('mapa').setView([42.367778, -4.026667], 15);
 
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap'
-        }).addTo(mapa);
+        const capaOSM = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        });
+        capaOSM.addTo(mapa);
+
+        const capaSatelite = L.tileLayer.wms('https://www.ign.es/wms-inspire/pnoa-ma', {
+            layers: 'OI.OrthoimageCoverage',
+            format: 'image/jpeg',
+            version: '1.3.0',
+            maxZoom: 20,
+            attribution: 'PNOA © Instituto Geográfico Nacional'
+        });
+
+
+        const capaSigpac = L.tileLayer.wms('https://sigpac-hubcloud.es/wms', {
+            layers: 'recinto', 
+            format: 'image/png',
+            transparent: true,
+            version: '1.3.0',
+            attribution: 'SIGPAC © FEGA'
+        });
+        capaSigpac.addTo(mapa);
+
+        L.control.layers(
+            {"Mapa": capaOSM, "Satelite": capaSatelite},
+            {"Recintos SIGPAC": capaSigpac}
+        ).addTo(mapa);
     </script>
 </body>
 </html>
