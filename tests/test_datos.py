@@ -5,8 +5,8 @@ from datos import cargar_datos
 
 def test_carga_las_5_parcelas_de_prueba():
     datos = cargar_datos()
-    assert datos.parcelas.n == 5
-    assert datos.parcelas.historial.shape == (5,3)
+    assert datos.parcelas.n == 20
+    assert datos.parcelas.historial.shape == (20,3)
 
 def test_las_probabilidades_de_tipo_anio_suman_1():
     datos = cargar_datos()

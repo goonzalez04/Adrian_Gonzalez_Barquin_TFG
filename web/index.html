@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Planificador de rotación de cultivos</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+
+    <style>
+        /* Botón desactivado mientras se calcula el plan */
+        button:disabled {
+            background-color: #ccc;
+            color: #666;
+            cursor: wait;
+        }
+    </style>
+</head>
+<body>
+    <h1>Planificador de rotación de cultivos</h1>
+    <div id="mapa" style="height: 600px;"></div>
+    <script>
+        const mapa = L.map('mapa').setView([42.367778, -4.026667], 15);
+
+        const capaOSM = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        });
+        capaOSM.addTo(mapa);
+
+        const capaSatelite = L.tileLayer.wms('https://www.ign.es/wms-inspire/pnoa-ma', {
+            layers: 'OI.OrthoimageCoverage',
+            format: 'image/jpeg',
+            version: '1.3.0',
+            maxZoom: 20,
+            attribution: 'PNOA © Instituto Geográfico Nacional'
+        });
+
+        const capaSigpac = L.tileLayer.wms('https://sigpac-hubcloud.es/wms', {
+            layers: 'recinto',
+            format: 'image/png',
+            transparent: true,
+            version: '1.3.0',
+            attribution: 'SIGPAC © FEGA'
+        });
+        capaSigpac.addTo(mapa);
+
+        L.control.layers(
+            {"Mapa": capaOSM, "Satélite": capaSatelite},
+            {"Recintos SIGPAC": capaSigpac}
+        ).addTo(mapa);
+    </script>
+
+    <button id="boton-optimizar">Optimizar plan</button>
+    <p id="estado"></p>
+
+    <div id="resultado" hidden>
+        <h2>Resultado del plan</h2>
+        <p>Margen esperado del año 1: <span id="margen"></span> €</p>
+        <p>Reglas incumplidas: <span id="violaciones"></span></p>
+
+        <table id="tabla-hectareas">
+            <thead><tr><th>Cultivo</th><th>Hectáreas (año 1)</th></tr></thead>
+            <tbody></tbody>
+        </table>
+
+        <table id="tabla-plan">
+            <thead><tr><th>Parcela</th><th>Superficie (ha)</th><th>Año 1</th><th>Año 2</th><th>Año 3</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <h2>Cultivos</h2>
+    <table id="tabla-cultivos">
+        <thead>
+            <tr><th>Cultivo</th><th>Dosis (kg/ha)</th><th>Stock semilla (kg)</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        // Tabla de cultivos, al abrir la página
+        async function cargarCultivos() {
+            const respuesta = await fetch("/cultivos");
+            const cultivos = await respuesta.json();
+
+            const cuerpo = document.querySelector("#tabla-cultivos tbody");
+            for (const c of cultivos) {
+                const fila = document.createElement("tr");
+                fila.innerHTML = `<td>${c.nombre}</td><td>${c.dosis_kg_ha}</td><td>${c.stock_semilla_kg}</td>`;
+                cuerpo.appendChild(fila);
+            }
+        }
+
+        // Pausa de "ms" milisegundos dentro de una función async
+        function esperar(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Al pulsar el botón: lanza el cálculo y pregunta cada 3 s hasta que termina
+        async function optimizar() {
+            const boton = document.getElementById("boton-optimizar");
+            const estado = document.getElementById("estado");
+            const resultado = document.getElementById("resultado");
+
+            boton.disabled = true;
+            resultado.hidden = true;
+            estado.textContent = "Calculando… puede tardar un par de minutos";
+
+            const respuesta = await fetch("/optimizar", { method: "POST" });
+            const id = (await respuesta.json()).id;
+
+            let trabajo = { estado: "calculando" };
+            while (trabajo.estado === "calculando") {
+                await esperar(3000);
+                trabajo = await (await fetch("/optimizar/" + id)).json();
+            }
+
+            if (trabajo.estado === "error") {
+                estado.textContent = "Error: " + trabajo.detalle;
+            } else {
+                estado.textContent = "";
+                mostrarResultado(trabajo);
+            }
+            boton.disabled = false;
+        }
+
+        // Pinta el margen, las hectáreas por cultivo y el plan de cada parcela
+        function mostrarResultado(trabajo) {
+            document.getElementById("margen").textContent = trabajo.margen_esperado;
+            document.getElementById("violaciones").textContent = trabajo.violaciones;
+
+            const cuerpoHa = document.querySelector("#tabla-hectareas tbody");
+            cuerpoHa.innerHTML = "";
+            for (const [cultivo, ha] of Object.entries(trabajo.hectareas)) {
+                const fila = document.createElement("tr");
+                fila.innerHTML = `<td>${cultivo}</td><td>${ha}</td>`;
+                cuerpoHa.appendChild(fila);
+            }
+
+            const cuerpoPlan = document.querySelector("#tabla-plan tbody");
+            cuerpoPlan.innerHTML = "";
+            for (const p of trabajo.plan) {
+                const fila = document.createElement("tr");
+                fila.innerHTML = `<td>${p.id}</td><td>${p.superficie_ha}</td>` +
+                                 `<td>${p.cultivos[0]}</td><td>${p.cultivos[1]}</td><td>${p.cultivos[2]}</td>`;
+                cuerpoPlan.appendChild(fila);
+            }
+
+            document.getElementById("resultado").hidden = false;
+        }
+
+        cargarCultivos();
+        document.getElementById("boton-optimizar").addEventListener("click", optimizar);
+    </script>
+</body>
+</html>
