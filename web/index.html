@@ -15,6 +15,21 @@
             color: #666;
             cursor: wait;
         }
+
+        .leyenda{
+            background: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            line-height: 20px;
+        }
+
+        .leyenda span {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -22,6 +37,28 @@
     <div id="mapa" style="height: 600px;"></div>
     <script>
         const mapa = L.map('mapa').setView([42.367778, -4.026667], 15);
+
+        const COLORES = {
+            trigo: "#f2c12e",      // amarillo
+            cebada: "#d98c3a",     // naranja
+            avena: "#f5e6a8",      // beige claro
+            titarro: "#4caf50",    // verde
+            barbecho: "#8d6e63"    // marrón
+        };
+
+        const leyenda = L.control({ position: "bottomright" });
+
+        leyenda.onAdd = function(){
+            const div = L.DomUtil.create("div", "leyenda");
+            for (const [cultivo, color] of Object.entries(COLORES)) {
+                div.innerHTML += `<span style="background: ${color}"></span>${cultivo}<br>`;
+            }
+            return div;
+        };
+
+        leyenda.addTo(mapa);
+        
+
 
         const capaOSM = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -46,10 +83,36 @@
         });
         capaSigpac.addTo(mapa);
 
-        L.control.layers(
+        const controlCapas = L.control.layers(
             {"Mapa": capaOSM, "Satélite": capaSatelite},
-            {"Recintos SIGPAC": capaSigpac}
+            {"Recintos SIGPAC": capaSigpac},
+    
         ).addTo(mapa);
+
+        let capaRecintos;
+
+        async function cargarRecintos() {
+            const respuesta = await fetch("/recintos");
+            const geojson = await respuesta.json();
+
+            capaRecintos = L.geoJSON(geojson,{
+                style: {color: "black", weight: 2, fillColor: "gray", fillOpacity: 0.5}
+            });
+
+            capaRecintos.addTo(mapa)
+            controlCapas.addOverlay(capaRecintos, "Mis parcelas");
+            mapa.fitBounds(capaRecintos.getBounds())
+            
+            
+        }
+
+        cargarRecintos()
+        
+
+        
+
+
+        
     </script>
 
     <button id="boton-optimizar">Optimizar plan</button>
@@ -147,6 +210,20 @@
                                  `<td>${p.cultivos[0]}</td><td>${p.cultivos[1]}</td><td>${p.cultivos[2]}</td>`;
                 cuerpoPlan.appendChild(fila);
             }
+
+
+            planPorId = {}
+            for (const p of trabajo.plan){
+                planPorId[p.id] = p
+            }
+
+            capaRecintos.eachLayer(capa => {
+                const id = capa.feature.properties.id;
+                const p = planPorId[id];
+
+                capa.setStyle({ fillColor: COLORES[p.cultivos[0]], fillOpacity: 0.7 });
+                
+            });
 
             document.getElementById("resultado").hidden = false;
         }
