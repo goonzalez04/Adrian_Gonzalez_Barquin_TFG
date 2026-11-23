@@ -42,3 +42,14 @@ def test_optimizar_devuelve_un_plan_sin_violaciones():
 def test_optimizar_con_id_que_no_existe_da_404():
     respuesta = cliente.get("/optimizar/no-existe")
     assert respuesta.status_code == 404
+
+
+def test_recintos_toene_un_contorno_por_parcela():
+    respuesta = cliente.get("/recintos")
+    assert respuesta.status_code == 200
+
+    geojson = respuesta.json()
+    datos = cargar_datos()
+    ids_recintos = [f["properties"]["id"] for f in geojson["features"]]
+    assert len(ids_recintos) == datos.parcelas.n
+    assert set(ids_recintos) == set(datos.parcelas.ids)
