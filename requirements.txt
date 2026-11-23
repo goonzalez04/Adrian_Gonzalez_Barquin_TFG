@@ -7,3 +7,4 @@ pytest
 uvicorn==0.54.0
 fastapi==0.162.4
 httpx2==2.16.0
+requests==2.34.2

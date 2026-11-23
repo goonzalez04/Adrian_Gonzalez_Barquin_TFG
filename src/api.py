@@ -10,6 +10,8 @@ from algoritmo import optimizar, margenes_por_campaña, evaluar_plan
 
 app = FastAPI()
 RUTA_WEB = pathlib.Path(__file__).resolve().parent.parent / "web" 
+RUTA_DATOS = pathlib.Path(__file__).resolve().parent.parent / "Datos"
+
 trabajos = {}
 
 
@@ -102,3 +104,10 @@ def estado_plan(id_trabajo: str):
     if id_trabajo not in trabajos:
         raise HTTPException(status_code=404, detail="Trabajo no encontrado")
     return trabajos[id_trabajo]
+
+
+
+@app.get("/recintos")
+def recintos():
+    return FileResponse(RUTA_DATOS / "Parcelas.geojson",
+                        media_type="application/geo+json")
