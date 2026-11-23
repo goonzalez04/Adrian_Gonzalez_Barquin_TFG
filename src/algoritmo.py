@@ -1,9 +1,11 @@
 import numpy as np
 import pathlib
+import time
 import pandas as pd
 from restricciones import repetir_familia_cultivo, diversificacion_pac, retorno_minimo, rotacion_cultivos
 from datos import cargar_datos
 from multiprocessing import Pool
+
 
 
 
@@ -21,35 +23,37 @@ def ayudas_fijas(datos):
 
     return a.basica_anual + a.redistributiva_anual + a.ecorregimen_anual
 
-def margenes_por_campaña(plan, datos):
-    secuencia = np.hstack([datos.parcelas.historial, plan])
-    n_historial = datos.parcelas.historial.shape[1]
 
+def margenes_poblacion(poblacion, datos):
+    
     c = datos.cultivos
     superficie = datos.parcelas.superficie
+    historial = datos.parcelas.historial
 
-    # Una fila por tipo de año (bueno, mediocre, malo), una columna por campaña
-    tabla = np.zeros((len(datos.tipo_anio.estados), datos.n_campañas))      # ←
-   
+    # Hectáreas de cada cultivo en cada campaña, para todos los planes  -> (I, T, C)
+    es_cultivo = poblacion[..., None] == np.arange(c.n)                  # (I, P, T, C) True/False
+    ha = (es_cultivo * superficie[None, :, None, None]).sum(axis=1)      # suma sobre parcelas
 
-    for t in range(datos.n_campañas):
-        stock = c.stock_semilla.copy()
-        ha = np.bincount(plan[:, t], weights=superficie, minlength=c.n)
+    # Semilla: se compra lo que no cubre el stock                        -> (I, T)
+    comprar = np.maximum(0, c.dosis * ha - c.stock_semilla)
+    coste = (comprar * c.precio_semilla).sum(axis=-1)
 
-        comprar = np.maximum(0, c.dosis * ha - stock)
-        coste = (comprar * c.precio_semilla).sum()                         # ← coste de esta campaña
-        
+    # Abono: cultivo anterior de cada casilla (año 1 -> último del historial)
+    ultimo = np.broadcast_to(historial[:, -1], poblacion.shape[:2])[..., None]   # (I, P, 1)
+    anterior = np.concatenate([ultimo, poblacion[:, :, :-1]], axis=-1)           # (I, P, T)
+    factor = np.where(c.es_leguminosa[anterior], 1 - datos.reduccion_abono, 1)
+    abono_kg = c.abono_kg_ha[poblacion] * factor * superficie[None, :, None]
+    coste = coste + abono_kg.sum(axis=1) * datos.precio_abono
 
-        # Abono: un cultivo sembrado tras una leguminosa necesita menos
-        anterior = secuencia[:, n_historial + t - 1]
-        tras_leguminosa = c.es_leguminosa[anterior]
-        factor = np.where(tras_leguminosa, 1 - datos.reduccion_abono, 1)
-        abono_kg = c.abono_kg_ha[plan[:, t]] * factor * superficie
-        coste += abono_kg.sum() * datos.precio_abono
+    # Beneficio por tipo de año                                         -> (I, T, 3)
+    beneficio = ha @ c.beneficio_ha.T
+    tabla = beneficio - coste[..., None] + ayudas_fijas(datos)
+    return tabla.transpose(0, 2, 1)                                      # (I, 3, T)
 
-        tabla[:, t] = c.beneficio_ha @ ha - coste + ayudas_fijas(datos)    # ←
 
-    return tabla
+def margenes_por_campaña(plan, datos):
+    return margenes_poblacion(plan[None], datos)[0]
+
 
 
 def evaluar_plan(plan, datos):
@@ -166,6 +170,7 @@ def optimizar(datos, n_reinicios=5, semilla=None):
 
 
 if __name__ == "__main__":
+    inicio = time.perf_counter()
 
     archivo = pathlib.Path(__file__).resolve().parent.parent / "Datos" / "Parcelas" / "Parcelas_real.csv"
     datos = cargar_datos(archivo_parcelas=archivo)
@@ -190,5 +195,6 @@ if __name__ == "__main__":
     año1 = tabla[:, 0]
     print("Año 1 (bueno, mediocre, malo):", año1.round(2))
     print("Año 1 esperado:", np.dot(datos.tipo_anio.probabilidades, año1).round(2))
+    print(f"Tiempo de optimizar: {time.perf_counter() - inicio:.1f} s")
 
 
