@@ -131,6 +131,24 @@ def test_con_riesgo_maximo_la_aptitud_es_el_margen_del_año_malo():
     assert aptitud(np.array([[TRIGO]]), datos) == pytest.approx(-100)
 
 
+def test_aptitud_de_la_poblacion_igual_que_plan_a_plan():
+    # aptitud con la población entera tiene que dar lo mismo que
+    # evaluando cada plan por separado con evaluar_plan
+    datos = cargar_datos()
+    np.random.seed(0)
+    poblacion = np.random.randint(0, datos.cultivos.n,
+                                  size=(20, datos.parcelas.n, datos.n_campañas))
+
+    esperadas = []
+    for plan in poblacion:
+        margenes, violaciones = evaluar_plan(plan, datos)
+        esperado = np.dot(datos.tipo_anio.probabilidades, margenes)
+        malo = margenes[datos.tipo_anio.estados.index("malo")]
+        esperadas.append(esperado - datos.riesgo * (esperado - malo) - 10000 * violaciones)
+
+    assert aptitud(poblacion, datos) == pytest.approx(esperadas)    
+
+
 # --- Operadores del algoritmo genético ---
 
 def test_mutar_con_tasa_0_no_cambia_el_plan():
