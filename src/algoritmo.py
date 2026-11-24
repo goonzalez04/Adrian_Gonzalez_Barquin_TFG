@@ -1,9 +1,11 @@
 import numpy as np
 import pathlib
+import time
 import pandas as pd
 from restricciones import repetir_familia_cultivo, diversificacion_pac, retorno_minimo, rotacion_cultivos
 from datos import cargar_datos
 from multiprocessing import Pool
+
 
 
 
@@ -21,35 +23,37 @@ def ayudas_fijas(datos):
 
     return a.basica_anual + a.redistributiva_anual + a.ecorregimen_anual
 
-def margenes_por_campaña(plan, datos):
-    secuencia = np.hstack([datos.parcelas.historial, plan])
-    n_historial = datos.parcelas.historial.shape[1]
 
+def margenes_poblacion(poblacion, datos):
+    
     c = datos.cultivos
     superficie = datos.parcelas.superficie
+    historial = datos.parcelas.historial
 
-    # Una fila por tipo de año (bueno, mediocre, malo), una columna por campaña
-    tabla = np.zeros((len(datos.tipo_anio.estados), datos.n_campañas))      # ←
-   
+    # Hectáreas de cada cultivo en cada campaña, para todos los planes  -> (I, T, C)
+    es_cultivo = poblacion[..., None] == np.arange(c.n)                  # (I, P, T, C) True/False
+    ha = (es_cultivo * superficie[None, :, None, None]).sum(axis=1)      # suma sobre parcelas
 
-    for t in range(datos.n_campañas):
-        stock = c.stock_semilla.copy()
-        ha = np.bincount(plan[:, t], weights=superficie, minlength=c.n)
+    # Semilla: se compra lo que no cubre el stock                        -> (I, T)
+    comprar = np.maximum(0, c.dosis * ha - c.stock_semilla)
+    coste = (comprar * c.precio_semilla).sum(axis=-1)
 
-        comprar = np.maximum(0, c.dosis * ha - stock)
-        coste = (comprar * c.precio_semilla).sum()                         # ← coste de esta campaña
-        
+    # Abono: cultivo anterior de cada casilla (año 1 -> último del historial)
+    ultimo = np.broadcast_to(historial[:, -1], poblacion.shape[:2])[..., None]   # (I, P, 1)
+    anterior = np.concatenate([ultimo, poblacion[:, :, :-1]], axis=-1)           # (I, P, T)
+    factor = np.where(c.es_leguminosa[anterior], 1 - datos.reduccion_abono, 1)
+    abono_kg = c.abono_kg_ha[poblacion] * factor * superficie[None, :, None]
+    coste = coste + abono_kg.sum(axis=1) * datos.precio_abono
 
-        # Abono: un cultivo sembrado tras una leguminosa necesita menos
-        anterior = secuencia[:, n_historial + t - 1]
-        tras_leguminosa = c.es_leguminosa[anterior]
-        factor = np.where(tras_leguminosa, 1 - datos.reduccion_abono, 1)
-        abono_kg = c.abono_kg_ha[plan[:, t]] * factor * superficie
-        coste += abono_kg.sum() * datos.precio_abono
+    # Beneficio por tipo de año                                         -> (I, T, 3)
+    beneficio = ha @ c.beneficio_ha.T
+    tabla = beneficio - coste[..., None] + ayudas_fijas(datos)
+    return tabla.transpose(0, 2, 1)                                      # (I, 3, T)
 
-        tabla[:, t] = c.beneficio_ha @ ha - coste + ayudas_fijas(datos)    # ←
 
-    return tabla
+def margenes_por_campaña(plan, datos):
+    return margenes_poblacion(plan[None], datos)[0]
+
 
 
 def evaluar_plan(plan, datos):
@@ -74,25 +78,53 @@ def evaluar_plan(plan, datos):
 
 
 def aptitud(plan, datos):
-    margenes, violaciones = evaluar_plan(plan, datos)
-    esperado = np.dot(datos.tipo_anio.probabilidades, margenes)
-    malo = margenes[datos.tipo_anio.estados.index("malo")]
-    riesgo = esperado - malo
-    return esperado - datos.riesgo * riesgo - 10000 * violaciones
+    """Aptitud de un plan (parcelas, campañas) -> un número,
+    o de una población (individuos, parcelas, campañas) -> un array (individuos,).
+
+    aptitud = margen esperado - riesgo * (esperado - año malo) - 10 000 * reglas incumplidas
+    """
+    # Un solo plan: lo trato como una población de 1
+    if plan.ndim == 2:
+        return aptitud(plan[None], datos)[0]
+
+    poblacion = plan
+    c = datos.cultivos
+    superficie = datos.parcelas.superficie
+    historial = datos.parcelas.historial
+    n_historial = historial.shape[1]
+
+    # Historial + plan de cada individuo                               -> (I, P, H+T)
+    historial = np.broadcast_to(historial, (len(poblacion),) + historial.shape)
+    secuencia = np.concatenate([historial, poblacion], axis=-1)
+
+    # Margen de cada plan en cada tipo de año, con descuento           -> (I, 3)
+    pesos = datos.descuento_anual ** np.arange(datos.n_campañas)
+    margenes = margenes_poblacion(poblacion, datos) @ pesos
+
+    # Reglas incumplidas de cada plan                                   -> (I,)
+    violaciones = (repetir_familia_cultivo(secuencia, c.es_cereal, 3, n_historial)
+                   + repetir_familia_cultivo(secuencia, c.es_leguminosa, 1, n_historial)
+                   + rotacion_cultivos(secuencia, superficie, c.n, max_anios=2, desde=n_historial)
+                   + retorno_minimo(secuencia, c.retorno_min, desde=n_historial)
+                   + diversificacion_pac(poblacion, superficie, c.n))
+
+    # Margen esperado, riesgo y penalización                            -> (I,)
+    esperado = margenes @ datos.tipo_anio.probabilidades
+    malo = margenes[:, datos.tipo_anio.estados.index("malo")]
+    return esperado - datos.riesgo * (esperado - malo) - 10000 * violaciones
 
 
-def torneo(poblacion, aptitudes, k=3):
+def torneo(poblacion, aptitudes, n, k=3):
+    
     n_individuos = len(poblacion)
-    indices = np.random.choice(n_individuos, size=k, replace=False)
-    mejor = indices[0]
-    for i in indices[1:]:
-        if aptitudes[i] > aptitudes[mejor]:
-            mejor = i
-    return poblacion[mejor]
+    indices = np.random.randint(0, n_individuos, size=(n, k))
+    columna = aptitudes[indices].argmax(axis = 1)
+    ganadores = indices[np.arange(n), columna]
+    return poblacion[ganadores]
 
 def cruza(padre, madre):
-    mascara = np.random.rand(padre.shape[0])< 0.5
-    return np.where(mascara[:, None], padre, madre)
+    mascara = np.random.rand(*padre.shape[:-1]) < 0.5
+    return np.where(mascara[..., None], padre, madre)
 
 
 def mutar(plan, tasa, datos):
@@ -118,8 +150,8 @@ def algoritmo_genetico(datos, n_elite=2, paciencia=100, max_generaciones=2000):
 
 
     while sin_mejora < paciencia and generacion < max_generaciones:
-        aptitudes = [aptitud(plan, datos) for plan in poblacion]
-        mejor_de_esta = max(aptitudes)
+        aptitudes = aptitud(poblacion, datos)
+        mejor_de_esta = aptitudes.max()
         mejores.append(mejor_de_esta)
 
         if mejor_de_esta > mejor_hasta_ahora:
@@ -129,19 +161,20 @@ def algoritmo_genetico(datos, n_elite=2, paciencia=100, max_generaciones=2000):
             sin_mejora += 1
 
         orden = np.argsort(aptitudes)[::-1]
-        nueva = [poblacion[i] for i in orden[:n_elite]]
 
-        while len(nueva) < n_individuos:
-            padre = torneo(poblacion, aptitudes)
-            madre = torneo(poblacion, aptitudes)
-            hijo = cruza(padre, madre)
-            hijo = mutar(hijo, tasa, datos)
-            nueva.append(hijo)
+        elite = poblacion[orden[:n_elite]]
+        nhijos = n_individuos - n_elite
 
-        poblacion = np.array(nueva)
+        padres = torneo(poblacion, aptitudes, nhijos)
+        madres = torneo(poblacion, aptitudes, nhijos)
+
+        hijos = mutar(cruza(padres, madres), tasa, datos)
+
+        poblacion = np.concatenate([elite, hijos])
+
         generacion += 1
 
-    aptitudes = [aptitud(plan, datos) for plan in poblacion]
+    aptitudes = aptitud(poblacion, datos)
     mejor = poblacion[np.argmax(aptitudes)]
     return mejor, mejores
 
@@ -166,6 +199,7 @@ def optimizar(datos, n_reinicios=5, semilla=None):
 
 
 if __name__ == "__main__":
+    inicio = time.perf_counter()
 
     archivo = pathlib.Path(__file__).resolve().parent.parent / "Datos" / "Parcelas" / "Parcelas_real.csv"
     datos = cargar_datos(archivo_parcelas=archivo)
@@ -190,5 +224,6 @@ if __name__ == "__main__":
     año1 = tabla[:, 0]
     print("Año 1 (bueno, mediocre, malo):", año1.round(2))
     print("Año 1 esperado:", np.dot(datos.tipo_anio.probabilidades, año1).round(2))
+    print(f"Tiempo de optimizar: {time.perf_counter() - inicio:.1f} s")
 
 
