@@ -1,7 +1,8 @@
 import numpy as np
 from numpy.testing import temppath
+import pandas as pd
 import pytest
-from datos import cargar_datos
+from datos import cargar_datos, coste_por_labores
 
 def test_carga_las_5_parcelas_de_prueba():
     datos = cargar_datos()
@@ -41,3 +42,24 @@ def test_ordena_el_historial_del_año_mas_antiguo_al_mas_reciente(tmp_path):
     nombres = datos.cultivos.nombres
     fila = [nombres[i] for i in datos.parcelas.historial[0]]
     assert fila == ["cebada", "titarro", "trigo"]
+
+
+def test_coste_por_labores_suma_maquina_contrato_y_producto(tmp_path):
+    (tmp_path / "Labores.csv").write_text(
+        "labor,maquina,litros_gasoil_ha,desgaste_apero_eur_ha,contrato_eur_ha\n"
+        "propia,maq_propia,10,5,0\n"
+        "contratada,maq_contratada,0,0,40\n")
+    (tmp_path / "Maquinaria.csv").write_text(
+        "maquina,propia\n"
+        "maq_propia,si\n"
+        "maq_contratada,no\n")
+    (tmp_path / "Labores_familia.csv").write_text(
+        "familia,labor,pasadas,producto_eur_ha\n"
+        "A,propia,2,0\n"
+        "A,contratada,1,10\n"
+        "B,propia,1,0\n")
+
+    coste = coste_por_labores(tmp_path, pd.Series(["A", "B", "A"]), precio_gasoil=1, mant_por_litro=0.5)
+
+    
+    assert coste == pytest.approx([90, 20, 90])

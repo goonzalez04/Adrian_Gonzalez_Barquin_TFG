@@ -59,9 +59,43 @@ class Datos:
 
 
     
-    
+def coste_por_labores(carpeta, familias, precio_gasoil, mant_por_litro):
+    # Coste de una pasada de cada labor
+    labores = pd.read_csv(carpeta / "Labores.csv")
+    maquinaria = pd.read_csv(carpeta / "Maquinaria.csv")
+    por_familia = pd.read_csv(carpeta / "Labores_familia.csv")
+
+    labores = pd.merge(labores, maquinaria, on='maquina')
+    propia = labores["propia"] == "si"
+    litros = labores["litros_gasoil_ha"]
+    coste_propia = litros * precio_gasoil + litros * mant_por_litro + labores["desgaste_apero_eur_ha"]
+
+    labores["coste_pasada"] = np.where(propia, coste_propia, labores["contrato_eur_ha"])
+
+    tabla = pd.merge(por_familia, labores[["labor", "coste_pasada"]], on='labor')
+    tabla["coste"] = tabla["pasadas"] * (tabla["coste_pasada"] + tabla["producto_eur_ha"])
+
+    coste_familia = tabla.groupby("familia")["coste"].sum()
+    return familias.map(coste_familia).to_numpy()
+
+
 
 def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos", archivo_parcelas = None):
+
+
+    #Parametros
+    tabla_parametro = pd.read_csv(carpeta / "Parametros.csv", index_col=0)
+    precio_abono = tabla_parametro.loc["precio_abono_kg", "valor"]
+    reduccion_abono = tabla_parametro.loc["reduccion_abono_tras_leguminosa", "valor"]
+    basica = tabla_parametro.loc["ayuda_basica_anual", "valor"]
+    redistributiva = tabla_parametro.loc["ayuda_redistributiva_anual", "valor"]
+    ecorregimen = tabla_parametro.loc["ecorregimen_anual", "valor"]
+    precio_gasoil = tabla_parametro.loc["precio_gasoil", "valor"]
+    mant_por_litro = tabla_parametro.loc["mantenimiento_eur_litro", "valor"]
+
+    ayudas = Ayudas(basica, redistributiva, ecorregimen)
+    descuento = tabla_parametro.loc["descuento_anual", "valor"]
+    
 
     #Cultivos
     tabla_cultivos = pd.read_csv(carpeta / "Cultivos.csv", index_col=0)
@@ -70,7 +104,8 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     rendimiento = tabla_cultivos["rendimiento_toneladas_ha"].to_numpy()
     precio = tabla_cultivos["precio_tonelada"].to_numpy()
     ayuda = tabla_cultivos["ayuda_asociada_PAC"].to_numpy()
-    coste = tabla_cultivos["coste_ha"].to_numpy()
+    coste = coste_por_labores(carpeta / "Costes", tabla_cultivos["familia"], precio_gasoil, mant_por_litro) \
+        + tabla_cultivos["seguro_eur_ha"].to_numpy()
     factor_bueno = tabla_cultivos["factor_bueno"].to_numpy()
     factor_malo = tabla_cultivos["factor_malo"].to_numpy()
     dosis = tabla_cultivos["dosis_kg_ha"].to_numpy()
@@ -80,16 +115,7 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
     retorno_min = tabla_cultivos["retorno_min_anios"].to_numpy()
     
 
-    #Parametros
-    tabla_parametro = pd.read_csv(carpeta / "Parametros.csv", index_col=0)
-    precio_abono = tabla_parametro.loc["precio_abono_kg", "valor"]
-    reduccion_abono = tabla_parametro.loc["reduccion_abono_tras_leguminosa", "valor"]
-    basica = tabla_parametro.loc["ayuda_basica_anual", "valor"]
-    redistributiva = tabla_parametro.loc["ayuda_redistributiva_anual", "valor"]
-    ecorregimen = tabla_parametro.loc["ecorregimen_anual", "valor"]
     
-    ayudas = Ayudas(basica, redistributiva, ecorregimen)
-    descuento = tabla_parametro.loc["descuento_anual", "valor"]
 
 
     #Factores de rendimiento por tipo de año (filas: bueno, mediocre, malo)
@@ -143,4 +169,3 @@ def cargar_datos(carpeta=pathlib.Path(__file__).resolve().parent.parent / "Datos
 
     return Datos(cultivos, parcelas, tipo_anio, reduccion_abono, precio_abono, ayudas, descuento)
 
-    
