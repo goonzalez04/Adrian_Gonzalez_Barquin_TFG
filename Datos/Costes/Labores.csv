@@ -1,0 +1,12 @@
+labor,maquina,litros_gasoil_ha,desgaste_apero_eur_ha,contrato_eur_ha
+arar,arado,20,3,0
+cultivar,cultivador,6.5,1,0
+siembra_cereal,sembradora,5,1,0
+siembra_girasol,sembradora_precision,5,1.5,45
+rodillo,rodillo,3,0.2,0
+abonado,abonadora,2,0.3,0
+herbicida,pulverizador,1.8,0.5,0
+fungicida,pulverizador,1.8,0.5,0
+quemante,pulverizador,1.8,0.5,0
+cosecha,cosechadora,15,4,90
+cosecha_girasol,cabezal_girasol,15,4,100
